@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1,
     "id": "pull-request-search",
-    "version": "1.13.104",
+    "version": "1.13.107",
     "name": "Pull Request Search",
     "scopes": [ 
         "vso.code",
@@ -52,7 +52,7 @@
         }
     ],
     "categories": [
-        "Code"
+        "Azure Repos"
     ],
     "contributions": [
         {
