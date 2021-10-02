@@ -5,7 +5,7 @@ import {
     ILineResult
 } from "./contentsContracts";
 
-class Lines extends React.Component<{lines: ILineResult[]}, void> {
+class Lines extends React.Component<{lines: ILineResult[]}, {}> {
     render() {
         const lineElems: JSX.Element[] = [];
         for (let line of this.props.lines) {
@@ -24,7 +24,7 @@ class Lines extends React.Component<{lines: ILineResult[]}, void> {
     }
 }
 
-class SearchedFile extends React.Component<{file: ISearchedFile, prUrl: string}, void> {
+class SearchedFile extends React.Component<{file: ISearchedFile, prUrl: string}, {}> {
     render() {
         const files: JSX.Element[] = [];
         if (this.props.file.source.length > 0) {

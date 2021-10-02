@@ -1,18 +1,26 @@
-import { getClient as getGitClient } from "TFS/VersionControl/GitRestClient";
 import { renderMessage, renderResults, PAGE_SIZE } from "./PullRequestsView";
-import { GitPullRequestSearchCriteria, PullRequestStatus, GitPullRequest, GitRepository } from "TFS/VersionControl/Contracts";
-import { IdentityPicker } from "./identity/IdentityPicker";
-import { IdentityRef } from "VSS/WebApi/Contracts";
+import { fnmdp } from "./PullRequestSearch";
+import { GitPullRequestSearchCriteria, PullRequestStatus, GitPullRequest, GitRepository } from "azure-devops-extension-api/Git";
+//import { IdentityPicker } from "./identity/IdentityPicker";
+import { IdentityRef } from "azure-devops-extension-api/WebApi";
 import { computeStatus } from "./status";
+import { GitRestClient } from "azure-devops-extension-api/Git";
+import { getService } from "azure-devops-extension-sdk";
+import { CommonServiceIds, IProjectInfo, IProjectPageService } from "azure-devops-extension-api";
 
+function getGitClient() : GitRestClient {
+    return new GitRestClient({});
+}
 
 function cacheIdentitiesFromPr(pr: GitPullRequest) {
+    /*
     const cache = (ident: IdentityRef | null) => ident && IdentityPicker.cacheIdentity(ident);
     cache(pr.autoCompleteSetBy);
     cache(pr.closedBy);
     cache(pr.createdBy);
     pr.reviewers.map(r => cache(r));
     IdentityPicker.updatePickers();
+    */
 }
 
 export interface IQueryParams {
@@ -26,7 +34,6 @@ export interface IQueryParams {
     reviewerId?: string;
     status?: string;
     repositoryId?: string;
-
 }
 
 function createFilter({title, start, end, status}: IQueryParams): (pullRequest: GitPullRequest) => boolean {
@@ -55,9 +62,14 @@ function queryFromRest(repositories: GitRepository[], params: IQueryParams, appe
         includeLinks: false,
         repositoryId
     } as GitPullRequestSearchCriteria;
-    const projectId = VSS.getWebContext().project.id;
+
     renderMessage("Loading pull requests...", false);
-    getGitClient().getPullRequestsByProject(projectId, criteria, undefined, append ? allPullRequests.length : 0, PAGE_SIZE).then((pullRequests: GitPullRequest[]) => {
+    getService<IProjectPageService>(CommonServiceIds.ProjectPageService).then(service => {
+        return service.getProject();
+    }).then((projectInfo : IProjectInfo) => {
+        const projectId = projectInfo.id;
+        return getGitClient().getPullRequestsByProject(projectId, criteria, undefined, append ? allPullRequests.length : 0, PAGE_SIZE);
+    }).then((pullRequests: GitPullRequest[]) => {
         requestedCount = append ? allPullRequests.length + PAGE_SIZE : PAGE_SIZE;
         renderMessage("", false);
         pullRequests.map(pr => cacheIdentitiesFromPr(pr));
@@ -68,7 +80,7 @@ function queryFromRest(repositories: GitRepository[], params: IQueryParams, appe
         }
         console.log(allPullRequests);
         renderResults(allPullRequests, repositories, createFilter(params), () => queryFromRest(repositories, params, true));
-    }, (error) => {
+    }).catch((error) => {
         console.log(error);
     });
 }
@@ -100,6 +112,7 @@ function isOnlyFilterChange(params: IQueryParams) {
         previousParams = {...params};
     }
 }
+
 export function runQuery(repositories: GitRepository[], params: IQueryParams, append = false) {
     if (isOnlyFilterChange(params)) {
         console.log("only filter change", params)

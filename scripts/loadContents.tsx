@@ -1,4 +1,3 @@
-import { getClient as getGitClient } from "TFS/VersionControl/GitRestClient";
 import { 
     GitPullRequest,
     GitRepository,
@@ -9,15 +8,23 @@ import {
     GitCommitDiffs,
     GitCommitRef,
     VersionControlChangeType,
-} from "TFS/VersionControl/Contracts";
+    GitRestClient,
+} from "azure-devops-extension-api/Git";
 import * as ReactDom from "react-dom";
 import * as React from "react";
-import * as Q from "q";
 import { initializeContentsSearch } from "./searchContents";
 import { IPrFile } from "./contentsContracts";
+import { getHost, getUser } from "azure-devops-extension-sdk";
+
+function getGitClient() : GitRestClient {
+    return new GitRestClient({});
+}
 
 function setMessage(message: string) {
-    ReactDom.render(<div>{message}</div>, document.getElementById("contents-message")!);
+    ReactDom.render(
+        <div>{message}</div>,
+        document.getElementById("contents-message")!
+    );
 }
 
 /**
@@ -54,7 +61,7 @@ function getDiffItems(sourceId: string, targetId: string, repository: GitReposit
     });
 }
 
-function getDiffBlobs(diffs: GitCommitDiffs, repository: GitRepository): Q.IPromise<IPrFile[]> {
+function getDiffBlobs(diffs: GitCommitDiffs, repository: GitRepository): Promise<IPrFile[]> {
     const client = getGitClient();
     const toStrArr = (buffer: ArrayBuffer) => {
         var file = '';
@@ -65,7 +72,7 @@ function getDiffBlobs(diffs: GitCommitDiffs, repository: GitRepository): Q.IProm
         }
         return file.split('\n');
     };
-    return Q.all(
+    return Promise.all(
         diffs.changes.filter(c => c.item.gitObjectType === "blob" as any
             && (
                 c.changeType === VersionControlChangeType.Add ||
@@ -91,7 +98,7 @@ function getDiffBlobs(diffs: GitCommitDiffs, repository: GitRepository): Q.IProm
                     } as IPrFile;
                 });
             } else {
-                return Q.all([
+                return Promise.all([
                     client.getBlobContent(repository.id, d.item.originalObjectId, repository.project.id, false),
                     client.getBlobContent(repository.id, d.item.objectId, repository.project.id, false)
                 ]).then(([originalBuffer, buffer]) => {
@@ -107,7 +114,7 @@ function getDiffBlobs(diffs: GitCommitDiffs, repository: GitRepository): Q.IProm
     );
 }
 
-function getCommits(pullRequst: GitPullRequest, repository: GitRepository): IPromise<[string, GitCommitRef[]]> {
+function getCommits(pullRequst: GitPullRequest, repository: GitRepository): Promise<[string, GitCommitRef[]]> {
     return getGitClient().getPullRequestCommits(repository.id, pullRequst.pullRequestId, repository.project.id)
         .then(prCommits => {
             console.log(prCommits);
@@ -121,17 +128,16 @@ function getCommits(pullRequst: GitPullRequest, repository: GitRepository): IPro
 export function loadAndShowContents(pullRequest: GitPullRequest, repository: GitRepository): void {
     $("#pull-request-search-container").hide();
     $("#pull-request-contents-search-container").show();
-    
-    
-    const uri = VSS.getWebContext().host.uri;
-    const project = VSS.getWebContext().project.name;
-    const team = VSS.getWebContext().team.name;
+
+    console.log(getHost(), getUser());
+    const uri = getHost().id;// VSS.getWebContext().host.uri;
+    const project = getHost().id; //VSS.getWebContext().project.name;
+    const team = getHost().id;// VSS.getWebContext().team.name;
     const prUrl = pullRequest.repository.name ?
         `${uri}${project}/${team}/_git/${pullRequest.repository.name}/pullrequest/${pullRequest.pullRequestId}`
         :
         `${uri}_git/${this.props.repository.project.name}/pullrequest/${pullRequest.pullRequestId}`;
     $(".contents-title").attr("href", prUrl).text(pullRequest.title);
-
     if (!pullRequest.lastMergeCommit) {
         setMessage("Cannot find merge commit for pull request");
         return;
@@ -140,14 +146,12 @@ export function loadAndShowContents(pullRequest: GitPullRequest, repository: Git
     setMessage("Loading pr commits...");
     getCommits(pullRequest, repository).then(([parentCommitId, prCommits]) => {
         setMessage("Loading diff items...");
-        getDiffItems(parentCommitId, prCommits[0].commitId, repository).then(diffItems => {
-            setMessage("Loading diff blobs...");
-            getDiffBlobs(diffItems, repository).then(diffBlobs => {
-                setMessage("");
-                initializeContentsSearch(pullRequest, repository, diffBlobs);
-            });
-        }
-        );
+        return getDiffItems(parentCommitId, prCommits[0].commitId, repository);
+    }).then(diffItems => {
+        setMessage("Loading diff blobs...");
+        return getDiffBlobs(diffItems, repository);
+    }).then(diffBlobs => {
+        setMessage("");
+        initializeContentsSearch(pullRequest, repository, diffBlobs);
     });
 }
-

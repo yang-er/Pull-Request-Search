@@ -2,25 +2,25 @@ import * as Q from "q";
 import { IImageLookup } from "./images";
 import { getIdentities } from "./getIdentities";
 import * as ImageStorage from "./imageStorage";
-import { IdentityRef } from "VSS/WebApi/Contracts";
+import { IdentityRef } from "azure-devops-extension-api/WebApi";
 import { CachedValue } from "../caching/cachedValue";
 
 export class ImageUrlMapper {
-    public static create(identities: IdentityRef[], timeout: number): Q.IPromise<ImageUrlMapper> {
-        const deferred = Q.defer<ImageUrlMapper>();
-        const uniqueNames = identities.map(i => i.isContainer ? i.displayName : i.uniqueName).filter(n => !!n);
-        const start = new Date().getTime();
-        ImageStorage.get(uniqueNames).then((lookup) => {
-            const mapper = new ImageUrlMapper(lookup);
-            const end = new Date().getTime();
-            console.log("elapsed", end - start);
-            deferred.resolve(mapper);
-        });
-        // fallback if getting identities is taking too long
-        setTimeout(() => {
-            deferred.resolve(new ImageUrlMapper({}))
-        }, timeout);
-        return deferred.promise;
+    public static create(identities: IdentityRef[], timeout: number): Promise<ImageUrlMapper> {
+        return new Promise<ImageUrlMapper>((resolve, reject) => {
+            const uniqueNames = identities.map(i => i.isContainer ? i.displayName : i.uniqueName).filter(n => !!n);
+            const start = new Date().getTime();
+            ImageStorage.get(uniqueNames).then((lookup) => {
+                const mapper = new ImageUrlMapper(lookup);
+                const end = new Date().getTime();
+                console.log("elapsed", end - start);
+                resolve(mapper);
+            });
+            // fallback if getting identities is taking too long
+            setTimeout(() => {
+                resolve(new ImageUrlMapper({}))
+            }, timeout);
+        })
     }
     constructor(
         private readonly lookup: IImageLookup,

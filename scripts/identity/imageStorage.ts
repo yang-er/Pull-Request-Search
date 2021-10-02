@@ -1,6 +1,5 @@
 import * as ExtensionCache from "../caching/extensionCache";
 import { IImageLookup, createLookup } from "./images";
-import * as Q from "q";
 import { CachedValue } from "../caching/cachedValue";
 
 interface IImageDocument {
@@ -9,7 +8,7 @@ interface IImageDocument {
 }
 const key = "image-lookup";
 const validDays = 30;
-function store(lookup: IImageDocument): Q.IPromise<void> {
+function store(lookup: IImageDocument): Promise<void> {
     const expiration = new Date();
     expiration.setDate(expiration.getDate() + validDays);
     return ExtensionCache.store(key, lookup, expiration);
@@ -40,7 +39,7 @@ function findMissingIds(lookup: IImageLookup, uniquenames: string[]): string[] {
     return uniquenames.filter(name => !(name in lookup) || new Date(lookup[name].cachedDate) < cutoffDate);
 }
 
-function hardGet(missingIds: string[], known: IImageLookup): Q.IPromise<IImageLookup> {
+function hardGet(missingIds: string[], known: IImageLookup): Promise<IImageLookup> {
     return createLookup(missingIds).then((missingLookups) => {
         const newLookup: IImageLookup = {
             ...(known || {}),
@@ -51,8 +50,9 @@ function hardGet(missingIds: string[], known: IImageLookup): Q.IPromise<IImageLo
         return newLookup;
     });
 }
-function getFromExtensionStorage(uniquenames: string[]): Q.IPromise<IImageLookup> {
-    return ExtensionCache.get<IImageDocument>(key).then((images): IImageLookup | Q.IPromise<IImageLookup> => {
+
+function getFromExtensionStorage(uniquenames: string[]): Promise<IImageLookup> {
+    return ExtensionCache.get<IImageDocument>(key).then((images): IImageLookup | Promise<IImageLookup> => {
         const lookup: IImageLookup | null = images ? fromDocument(images) : null;
         const missingIds = lookup ? findMissingIds(lookup, uniquenames) : uniquenames;
         if (missingIds.length === 0) {
@@ -61,13 +61,14 @@ function getFromExtensionStorage(uniquenames: string[]): Q.IPromise<IImageLookup
         return hardGet(missingIds, {}).then(lookup => lookup, () => lookup || {});
     });
 }
-let lastLookup: CachedValue<IImageLookup> = new CachedValue(() => Q({}));
-export function get(uniquenames: string[]): Q.IPromise<IImageLookup> {
+
+let lastLookup = new CachedValue<IImageLookup>(() => Promise.resolve<IImageLookup>({}));
+export function get(uniquenames: string[]): Promise<IImageLookup> {
     const prev = lastLookup;
-    lastLookup = new CachedValue(() => prev.getValue().then((lastLookup) => {
+    lastLookup = new CachedValue<IImageLookup>(() => prev.getValue().then((lastLookup) => {
         const missingIds = findMissingIds(lastLookup, uniquenames);
         if (missingIds.length === 0) {
-            return Q(lastLookup);
+            return Promise.resolve(lastLookup);
         }
         if (Object.keys(lastLookup).length === 0) {
             return getFromExtensionStorage(uniquenames);

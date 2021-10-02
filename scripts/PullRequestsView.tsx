@@ -1,13 +1,12 @@
-import { GitPullRequest, GitRepository, PullRequestStatus, PullRequestAsyncStatus } from "TFS/VersionControl/Contracts";
+import { GitPullRequest, GitRepository, PullRequestStatus, PullRequestAsyncStatus } from "azure-devops-extension-api/Git";
 import * as ReactDom from "react-dom";
 import * as React from "react";
-import * as Utils_Date from "VSS/Utils/Date";
 import { loadAndShowContents } from "./loadContents";
 import { computeStatus } from "./status";
-import { HostNavigationService } from "VSS/SDK/Services/Navigation";
 import { ImageUrlMapper } from "./identity/ImageUrlMapper";
 import { identitiesInPrs } from "./identitiesInPrs";
-import * as Q from "q";
+import { getHost, getService } from "azure-devops-extension-sdk";
+import { CommonServiceIds, IHostNavigationService } from "azure-devops-extension-api";
 
 export interface ICallbacks {
     creator: (displayName: string) => void;
@@ -21,18 +20,18 @@ export const PAGING_LIMIT = 1000;
 class RequestRow extends React.Component<{
     pullRequest: GitPullRequest,
     repository: GitRepository,
-    navigationService: HostNavigationService,
+    navigationService: IHostNavigationService,
     imgUrlMapper: ImageUrlMapper,
 }, {}> {
     render() {
         const { imgUrlMapper, navigationService, pullRequest: pr, repository } = this.props;
 
-        const uri = VSS.getWebContext().host.uri;
-        const project = VSS.getWebContext().project.name;
-        const team = VSS.getWebContext().team.name;
+        const uri = getHost().id;// VSS.getWebContext().host.uri;
+        const project = getHost().id;//VSS.getWebContext().project.name;
+        const team = getHost().id;//VSS.getWebContext().team.name;
         const url = `${uri}${project}/${team}/_git/${repository.name}/pullrequest/${pr.pullRequestId}`;
         const targetName = pr.targetRefName.replace("refs/heads/", "");
-        const createTime = Utils_Date.friendly(pr.creationDate);
+        const createTime = pr.creationDate;
 
         const reviewerImages = pr.reviewers.map((reviewer) =>
             <img style={{ display: "block-inline" }} src={imgUrlMapper.getImageUrl(reviewer)} title={reviewer.displayName} />
@@ -73,7 +72,7 @@ class RequestRow extends React.Component<{
 class RequestsView extends React.Component<{
     pullRequests: GitPullRequest[],
     repositories: GitRepository[],
-    navigationService: HostNavigationService,
+    navigationService: IHostNavigationService,
     imgUrlMapper: ImageUrlMapper,
 }, {}> {
     render() {
@@ -127,8 +126,8 @@ export function renderResults(pullRequests: GitPullRequest[], repositories: GitR
         renderMessage("No pull requests found");
     } else {
         const mapperPromise = new ImageUrlMapper({});//ImageUrlMapper.create(identitiesInPrs(pullRequests), 2000);
-        Q.all([
-            VSS.getService(VSS.ServiceIds.Navigation) as Q.IPromise<HostNavigationService>,
+        Promise.all([
+            getService<IHostNavigationService>(CommonServiceIds.HostNavigationService),
             mapperPromise
         ]).then(([navigationService, imgUrlMapper]) => {
             $(".pull-request-search-container #message").html("");

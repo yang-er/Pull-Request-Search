@@ -1,8 +1,15 @@
-import * as Q from "q";
+import { CommonServiceIds, IExtensionDataManager, IExtensionDataService } from "azure-devops-extension-api";
+import { VssServerError } from "azure-devops-extension-api/Common/Fetch"
+import { getAccessToken, getExtensionContext, getService, getUser } from "azure-devops-extension-sdk";
 import { CachedValue } from "./cachedValue";
 
 const collection = "extension-cache";
-const service = new CachedValue<IExtensionDataService>(() => VSS.getService(VSS.ServiceIds.ExtensionData));
+const service = new CachedValue<IExtensionDataManager>(async () => {
+    const service : IExtensionDataService = await getService(CommonServiceIds.ExtensionDataService);
+    const accessToken = await getAccessToken();
+    const extensionId = getExtensionContext().extensionId;
+    return service.getExtensionDataManager(extensionId, accessToken);
+});
 
 interface IExtensionCacheEntry<T> {
     id: string;
@@ -11,9 +18,10 @@ interface IExtensionCacheEntry<T> {
     expiration: string;
     __etag: -1;
 }
+
 const formatVersion = 2;
 
-export function store<T>(key: string, value: T, expiration?: Date): Q.IPromise<void> {
+export function store<T>(key: string, value: T, expiration?: Date): Promise<void> {
     const entry: IExtensionCacheEntry<T> = {
         id: key,
         value,
@@ -21,13 +29,13 @@ export function store<T>(key: string, value: T, expiration?: Date): Q.IPromise<v
         expiration: expiration ? expiration.toJSON() : "",
         __etag: -1,
     };
-    return service.getValue().then((dataService): Q.IPromise<void> =>
+    return service.getValue().then((dataService): Promise<void> =>
         dataService.setDocument(collection, entry).then(() => undefined)
     );
 }
 
-export function get<T>(key: string): Q.IPromise<T | null> {
-    return VSS.getService(VSS.ServiceIds.ExtensionData).then((dataService: IExtensionDataService) => {
+export function get<T>(key: string): Promise<T | null> {
+    return service.getValue().then(dataService => {
         return dataService.getDocument(collection, key).then((doc: IExtensionCacheEntry<T>) => {
             if (doc.formatVersion !== formatVersion) {
                 return null;
@@ -36,7 +44,7 @@ export function get<T>(key: string): Q.IPromise<T | null> {
                 return null;
             }
             return doc.value;
-        }, (error: TfsError): T | null => {
+        }, (error: VssServerError): T | null => {
             const status = Number(error.status);
             // If collection has not been created yet;
             if (status === 404 ||

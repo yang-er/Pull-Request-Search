@@ -1,5 +1,4 @@
 ﻿<!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -112,61 +111,8 @@
     </style>
 </head>
 <body class="wrapper">
-    <div id="header"></div>
-    <div id="pull-request-search-container">
-        <div class="input-controls">
-            <div>
-                <label>Title</label>
-                <div class="title-box"></div>
-            </div>
-            <div class="status">
-                <label>Status</label>
-                <div class="status-picker"></div>
-            </div>
-            <div>
-                <label>Creator</label>
-                <div class="creator-picker"></div>
-            </div>
-            <div>
-                <label>Reviewer</label>
-                <div class="reviewer-picker"></div>
-            </div>
-            <div>
-                <label>Start Date</label>
-                <div class="start-date-box"></div>
-            </div>
-            <div>
-                <label>End Date</label>
-                <div class="end-date-box"></div>
-            </div>
-            <div>
-                <label>Repo</label>
-                <div class="repo-picker"></div>
-            </div>
-            <div class="bowtie">
-                <button class="refresh cta" aria-label="Refresh">Refresh</button>
-            </div>
-        </div>
-        <div id="message">Loading repository metadata...</div>
-        <div id="results"></div>
-    </div>
-    <div id="pull-request-contents-search-container" hidden>
-        <div class="input-controls">
-            <div class="bowtie">
-                <button class="back-button cta" aria-label="Back">Back</button>
-            </div>
-            <div>
-                <label>Search</label>
-                <div class="contents-search"></div>
-            </div>
-            <div class="bowtie">
-                <button class="search-button cta" aria-label="Search">Search</button>
-            </div>
-        </div>
-        <a class="contents-title" rel="noreferrer" target="_blank"></a>
-        <div id="contents-message"></div>
-        <div id="contents-results"></div>
-    </div>
+    <div id="root"></div>
+    <script src="build/PullRequestsSearch.js"></script>
     <script type="text/javascript">
         // Initialize framework 
         VSS.init({

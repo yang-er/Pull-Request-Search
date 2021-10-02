@@ -1,27 +1,27 @@
 
-import { BaseControl } from "VSS/Controls";
-import { Combo, IComboOptions } from "VSS/Controls/Combos";
+//import { BaseControl } from "VSS/Controls";
+//import { Combo, IComboOptions } from "VSS/Controls/Combos";
 import {
     GitPullRequest,
     GitRepository,
-} from "TFS/VersionControl/Contracts";
+} from "azure-devops-extension-api/Git";
 import { IPrFile, ISearchedFile } from "./contentsContracts";
 import { renderSearchResults } from "./renderContentSearch";
 
-const contentsSearchBox = BaseControl.createIn(Combo, $(".contents-search"), { mode: "text", onKeyDown: (e) => {
+/*const contentsSearchBox = BaseControl.createIn(Combo, $(".contents-search"), { mode: "text", onKeyDown: (e) => {
     if (e.keyCode === 13) {
         search();
     }
-} } as IComboOptions) as Combo;
+} } as IComboOptions) as Combo;*/
 let prFiles: IPrFile[] | null = null;
 let prUrl: string | null = null;
 
 export function initializeContentsSearch(pr: GitPullRequest, repository: GitRepository, prFileContents: IPrFile[]) {
     prFiles = prFileContents;
     
-    const uri = VSS.getWebContext().host.uri;
-    const project = VSS.getWebContext().project.name;
-    const team = VSS.getWebContext().team.name;
+    const uri = '';// VSS.getWebContext().host.uri;
+    const project =  '';//VSS.getWebContext().project.name;
+    const team =  '';//VSS.getWebContext().team.name;
     prUrl = pr.repository.name ?
         `${uri}${project}/${team}/_git/${pr.repository.name}/pullrequest/${pr.pullRequestId}`
         :
@@ -37,7 +37,7 @@ function containsString(target: string, search: string): boolean {
 }
 
 function search(): void {
-    const searchString = contentsSearchBox.getInputText();
+    const searchString =  '';//contentsSearchBox.getInputText();
     const searchResults: ISearchedFile[] = [];
     $("#contents-message").text("Searching files...");
     if (searchString && prFiles) {

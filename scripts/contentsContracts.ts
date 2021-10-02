@@ -1,6 +1,4 @@
-import {
-    VersionControlChangeType,
-} from "TFS/VersionControl/Contracts";
+import { VersionControlChangeType } from  "azure-devops-extension-api/Git";
 
 export interface IPrFile {
     path: string;

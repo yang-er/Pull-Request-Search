@@ -1,11 +1,11 @@
-import { IdentityRef } from "VSS/WebApi/Contracts";
-import { Combo } from "VSS/Controls/Combos";
-import { getClient } from "TFS/Core/RestClient";
-import { WebApiTeam } from "TFS/Core/Contracts";
+//import { IdentityRef } from "VSS/WebApi/Contracts";
+//import { Combo } from "VSS/Controls/Combos";
+//import { getClient } from "TFS/Core/RestClient";
+//import { WebApiTeam } from "TFS/Core/Contracts";
 import * as Q from "q";
 import { getIdentities } from "./getIdentities";
 import * as imageStorage from "./imageStorage";
-
+/*
 export interface IdentRefWUnique extends IdentityRef {
     uniqueDisplayName: string;
 }
@@ -13,7 +13,7 @@ export interface IdentRefWUnique extends IdentityRef {
  * Control for picking identities.
  * 
  * The actual in product identity picker is not available for extensions
- */
+ *
 export class IdentityPicker extends Combo {
     private static readonly sortedIdentities: IdentRefWUnique[] = [];
     private static readonly cachedIdentities: { [guid: string]: void } = {};
@@ -77,7 +77,7 @@ export class IdentityPicker extends Combo {
         this.sortedIdentities.splice(idx, present ? 1 : 0, {...ident, uniqueDisplayName: this.uniqueDisplay(ident)});
     }
 
-    public static cacheAllIdentitiesInProject(project: { id: string, name: string }): IPromise<void> {
+    public static cacheAllIdentitiesInProject(project: { id: string, name: string }): Promise<void> {
         return getIdentities(project).then(identities => {
             return identities.forEach(id => this.cacheIdentity(id))
         });
@@ -99,3 +99,4 @@ export class IdentityPicker extends Combo {
     }
 
 }
+*/

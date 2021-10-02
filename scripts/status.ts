@@ -1,4 +1,4 @@
-import { PullRequestStatus, GitPullRequest } from "TFS/VersionControl/Contracts";
+import { PullRequestStatus, GitPullRequest } from "azure-devops-extension-api/Git/index";
 
 const statusDisplayMappings = {
     "Active": PullRequestStatus.Active,
@@ -7,6 +7,7 @@ const statusDisplayMappings = {
     "Approved with suggestions": PullRequestStatus.Active,
     "Approved": PullRequestStatus.Active,
     "Awaiting Approval": PullRequestStatus.Active,
+    "Draft": PullRequestStatus.Active,
     "Abandoned": PullRequestStatus.Abandoned,
     "Completed": PullRequestStatus.Completed,
     "All": PullRequestStatus.All
@@ -23,14 +24,15 @@ export function computeStatus(pr: GitPullRequest): string {
     if (pr.status !== PullRequestStatus.Active) {
         return PullRequestStatus[pr.status];
     }
-    const reviewers = pr.reviewers;
-    if ($.grep(reviewers, (reviewer) => !!reviewer && reviewer.vote === -10).length > 0) {
+    if (pr.isDraft) {
+        return "Draft";
+    } else if (pr.reviewers.find(reviewer => reviewer.vote === -10)) {
         return "Rejected";
-    } else if ($.grep(reviewers, (reviewer) => !!reviewer && reviewer.vote === -5).length > 0) {
+    } else if (pr.reviewers.find(reviewer => reviewer.vote === -5)) {
         return "Awaiting Author";
-    } else if ($.grep(reviewers, (reviewer) => !!reviewer && reviewer.vote === 5).length > 0) {
+    } else if (pr.reviewers.find(reviewer => reviewer.vote === 5)) {
         return "Approved with suggestions";
-    } else if ($.grep(reviewers, (reviewer) => !!reviewer && reviewer.vote === 10).length > 0) {
+    } else if (pr.reviewers.find(reviewer => reviewer.vote === 10)) {
         return "Approved";
     } else {
         return "Awaiting Approval";

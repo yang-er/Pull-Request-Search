@@ -1,34 +1,17 @@
 {
-    "compilerOptions": {
-        "module": "amd",
-        "sourceMap": false,
-        "rootDir": "./scripts",
-        "target": "es5",
-        "jsx": "react",
-        "strictNullChecks": true
-    },
-    "filesGlob": [
-        "./scripts/**/*.ts",
-        "!**/*.tests.ts",
-        "./typings/index.d.ts"
-    ],
-    "files": [
-        "scripts/app.ts",
-        "scripts/caching/cachedValue.ts",
-        "scripts/caching/extensionCache.ts",
-        "scripts/caching/throttlePromises.ts",
-        "scripts/contentsContracts.ts",
-        "scripts/identitiesInPrs.ts",
-        "scripts/identity/defaultImages.ts",
-        "scripts/identity/getIdentities.ts",
-        "scripts/identity/IdentityPicker.ts",
-        "scripts/identity/images.ts",
-        "scripts/identity/imageStorage.ts",
-        "scripts/identity/ImageUrlMapper.ts",
-        "scripts/RestCall.ts",
-        "scripts/runQuery.ts",
-        "scripts/searchContents.ts",
-        "scripts/status.ts",
-        "typings/index.d.ts"
-    ]
+  "compilerOptions": {
+    "module": "amd",
+    "moduleResolution": "Node",
+    "sourceMap": false,
+    "rootDir": "src/",
+    "outDir": "dist/",
+    "target": "es6",
+    "lib": ["es6", "dom", "es2015"],
+    "jsx": "react",
+    "strict": true,
+    "strictNullChecks": true
+  },
+  "exclude": [
+    "node_modules",
+  ]
 }

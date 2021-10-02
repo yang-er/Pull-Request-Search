@@ -1,12 +1,14 @@
-import { authTokenManager } from "VSS/Authentication/Services";
+import { VssServerError } from "azure-devops-extension-api/Common/Fetch";
+import { getAccessToken } from "azure-devops-extension-sdk";
+
 export function callApi(url: string,
                         method: string,
                         headers: {[header: string]: string} | undefined,
                         data: any | undefined,
                         success: (response) => void,
-                        failure: (error: TfsError, errorThrown: string, status: number) => void, ajaxSettings: Partial<JQueryAjaxSettings> = {}) {
-    VSS.getAccessToken().then((sessionToken) => {
-        const authorizationHeaderValue = authTokenManager.getAuthorizationHeader(sessionToken);
+                        failure: (error: VssServerError, errorThrown: string, status: number) => void, ajaxSettings: Partial<JQueryAjaxSettings> = {}) {
+    getAccessToken().then((sessionToken) => {
+        const authorizationHeaderValue = sessionToken ? "Bearer " + sessionToken : '';
         $.ajax({
             ...ajaxSettings,
             url: url,
@@ -20,10 +22,10 @@ export function callApi(url: string,
                     if (jqXHR.responseJSON) {
                         failure(jqXHR.responseJSON, errorThrown, jqXHR.status);
                     } else {
-                        failure({name: "CallFailure", message: "call failed with status code " + jqXHR.status}, errorThrown, jqXHR.status);
+                        failure({name: "CallFailure", message: "call failed with status code " + jqXHR.status, status: jqXHR.status, responseText: ''}, errorThrown, jqXHR.status);
                     }
                 } else {
-                    failure({name: "AuthorizationFailure", message: "unauthorized call"}, errorThrown, jqXHR.status);
+                    failure({name: "AuthorizationFailure", message: "unauthorized call", status: jqXHR.status, responseText: ''}, errorThrown, jqXHR.status);
                 }
             },
             beforeSend: function (jqXHR) {
@@ -39,8 +41,8 @@ export function callApi(url: string,
 }
 
 export function binaryCall(url: string, method: string, success: (data: Uint8Array, contentType: string) => void) {
-    VSS.getAccessToken().then((sessionToken) => {
-        const authorizationHeaderValue = authTokenManager.getAuthorizationHeader(sessionToken);
+    getAccessToken().then((sessionToken) => {
+        const authorizationHeaderValue = sessionToken ? "Bearer " + sessionToken : '';
         const oReq = new XMLHttpRequest();
         oReq.open(method, url, true);
         oReq.responseType = "arraybuffer";

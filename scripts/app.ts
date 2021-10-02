@@ -1,13 +1,11 @@
-import { Combo, IComboOptions, ComboDateBehavior } from "VSS/Controls/Combos";
-import { BaseControl } from "VSS/Controls";
-import { getClient as getGitClient } from "TFS/VersionControl/GitRestClient";
-import { GitRepository } from "TFS/VersionControl/Contracts";
-import { IdentityPicker } from "./identity/IdentityPicker";
+import { GitRepository, GitRestClient } from "azure-devops-extension-api/Git";
 import { runQuery, IQueryParams } from "./runQuery";
+import { getContributionId, init, register } from "azure-devops-extension-sdk";
 
 let identityCallback: () => void;
 let identitiesLoaded: boolean = false;
 
+/*
 IdentityPicker.cacheAllIdentitiesInProject(VSS.getWebContext().project).then(() => {
     IdentityPicker.updatePickers();
     if (identityCallback) {
@@ -15,14 +13,17 @@ IdentityPicker.cacheAllIdentitiesInProject(VSS.getWebContext().project).then(() 
         identitiesLoaded = true;
     }
 });
+*/
 
 // create controls
+/*
 const statusOptions: IComboOptions = {
     source: [
         "Active",
         "Abandoned",
         "Completed",
         "All",
+        "Draft",
         "Awaiting Approval",
         "Awaiting Author",
         "Approved with suggestions",
@@ -42,19 +43,21 @@ const titleControl = <Combo>BaseControl.createIn(Combo, $(".title-box"), <ICombo
 const startDateControl = <Combo>BaseControl.createIn(Combo, $(".start-date-box"), <IComboOptions>{ type: "date-time" });
 const endDateControl = <Combo>BaseControl.createIn(Combo, $(".end-date-box"), <IComboOptions>{ type: "date-time" });
 const repoControl = <Combo>BaseControl.createIn(Combo, $(".repo-picker"), <IComboOptions>{});
+*/
 
 let repositories: GitRepository[];
-getGitClient().getRepositories(VSS.getWebContext().project.id).then(
+new GitRestClient({}).getRepositories().then(
     (repos) => {
         repositories = repos.sort((a, b) => a.name.localeCompare(b.name));
-        repoControl.setSource(repositories.map((r) => r.name));
+        console.log(repositories.map((r) => r.name));
+        //repoControl.setSource(repositories.map((r) => r.name));
         
         // Intial query results
         runQueryFromParams();
     }
 );
 function getSelectedRepositoryId(): string | undefined {
-    const idx = repoControl.getSelectedIndex();
+    const idx = -1;
     return idx < 0 ? undefined : repositories[idx].id;
 }
 
@@ -63,6 +66,7 @@ const params: IQueryParams = {
 };
 
 // event Logic
+/*
 creatorControl._bind("change", () => {
     if (creatorControl.getSelectedIndex() >= 0 || !creatorControl.getText()) {
         params.creatorId = creatorControl.selectedIdentityId();
@@ -99,10 +103,18 @@ repoControl._bind("change", () => {
         params.repositoryId = getSelectedRepositoryId();
         runQueryFromParams();
     }
-});
+});*/
+
 $(".refresh").click(() => runQueryFromParams());
 function runQueryFromParams() {
     runQuery(repositories, params);
 }
 
-VSS.register(VSS.getContribution().id, {});
+register(
+    getContributionId(),
+    {}
+);
+
+init({
+    applyTheme: true,
+});

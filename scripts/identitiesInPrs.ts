@@ -1,5 +1,5 @@
-import { IdentityRef } from "VSS/WebApi/Contracts";
-import { GitPullRequest } from "TFS/VersionControl/Contracts";
+import { IdentityRef } from "azure-devops-extension-api/WebApi";
+import { GitPullRequest } from "azure-devops-extension-api/Git";
 
 function getIdentitiesInPr(pr: GitPullRequest): IdentityRef[] {
     return [

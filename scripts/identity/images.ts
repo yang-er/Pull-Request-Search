@@ -1,37 +1,34 @@
-import * as Q from "q";
 import { throttlePromises } from "../caching/throttlePromises";
 import { callApi, binaryCall } from "../RestCall";
-import { IdentitiesSearchRequestModel, QueryTokenResultModel } from "VSS/Identities/Picker/RestClient";
-import { CommonIdentityPickerHttpClient, IEntity } from "VSS/Identities/Picker/RestClient"
-import { IdentityService } from "VSS/Identities/Picker/Services";
+import { IdentityServiceIds, IIdentity, IVssIdentityService } from "azure-devops-extension-api/Identities";
+//import { IdentitiesSearchRequestModel, QueryTokenResultModel } from "VSS/Identities/Picker/RestClient";
+//import { CommonIdentityPickerHttpClient, IEntity } from "VSS/Identities/Picker/RestClient"
+//import { IdentityService } from "VSS/Identities/Picker/Services";
 import { CachedValue } from "../caching/cachedValue";
-import * as Service from "VSS/Service";
 import * as defaultImages from "../identity/defaultImages";
+import { getService } from "azure-devops-extension-sdk";
 
-const client = Service.getService(IdentityService)
-const uri = VSS.getWebContext().collection.uri;
-function getEntityId(searchName: string): Q.IPromise<IEntity> {
+const cache = new CachedValue(() => getService<IVssIdentityService>(IdentityServiceIds.IdentityService));
+const uri = ""; //VSS.getWebContext().collection.uri;
+
+function getEntityId(searchName: string): Promise<IIdentity> {
     const match = searchName.match(/\[.*\]\\(.*)/);
     const query = match ? match[1] : searchName;
-    const promises = client.getIdentities(query, {AAD: true, IMS: true, Source: true}, {User: true, Group: true});
-    const [key] = Object.keys(promises);
-    return promises[key].then((queryResult) => 
-        queryResult.identities.filter(i => !match || i.displayName === searchName)[0] as IEntity
+    return cache.getValue().then(client => client.searchIdentitiesAsync(query, ['AAD', 'IMS', 'Source'], ['User', 'Group'])).then((queryResult) => 
+        queryResult.filter(i => !match /*|| i.displayName === searchName*/)[0] as IIdentity
     );
 }
 
 /** get the avatar as a dataurl */
-function getAvatar(entity: IEntity): Q.IPromise<string> {
+function getAvatar(entity: IIdentity): Promise<string> {
     const url = `${uri}_apis/IdentityPicker/Identities/${entity.entityId}/avatar`;
-    
-    const deferred = Q.defer<any>();
-    binaryCall(url, "GET", (response, contentType) => {
+    return new Promise<string>((resolve, reject) => binaryCall(url, "GET", (response, contentType) => {
         if (response.length === 0) {
             if (entity.entityType === "Group") {
-                deferred.resolve(defaultImages.groupImage);
+                resolve(defaultImages.groupImage);
                 return;
             } else {
-                deferred.resolve(defaultImages.userImage);
+                resolve(defaultImages.userImage);
                 return;
             }
         }
@@ -40,26 +37,23 @@ function getAvatar(entity: IEntity): Q.IPromise<string> {
             String.fromCharCode(ch)
         ).join(''));
         const dataurl = `data:${mimeType};base64,${base64}`;
-        deferred.resolve(dataurl);
-    });
-    return deferred.promise;
+        resolve(dataurl);
+    }));
 }
 
-function resizeImage(dataUrl: string): Q.IPromise<string> {
-    const deferred = Q.defer<string>();
-    var canvas = document.createElement("canvas");
-    canvas.width = 44;
-    canvas.height = 44;
-    var img = document.createElement("img");
-    img.src = dataUrl;
-    img.onload = () => {
-        canvas.getContext("2d")!.drawImage(img, 0, 0, 44, 44);
-        const resized = canvas.toDataURL();
-        deferred.resolve(resized);
-    }
-
-
-    return deferred.promise;
+function resizeImage(dataUrl: string): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+        var canvas = document.createElement("canvas");
+        canvas.width = 44;
+        canvas.height = 44;
+        var img = document.createElement("img");
+        img.src = dataUrl;
+        img.onload = () => {
+            canvas.getContext("2d")!.drawImage(img, 0, 0, 44, 44);
+            const resized = canvas.toDataURL();
+            resolve(resized);
+        }
+    });
 }
 
 export interface IImageUrl {
@@ -71,7 +65,8 @@ export interface IImageUrl {
 export interface IImageLookup {
     [uniqueName: string]: IImageUrl;
 }
-export function createLookup(uniqueNames: string[]): Q.IPromise<IImageLookup> {
+
+export function createLookup(uniqueNames: string[]): Promise<IImageLookup> {
     return throttlePromises(
         uniqueNames,
         (uniqueName) => {
@@ -84,5 +79,5 @@ export function createLookup(uniqueNames: string[]): Q.IPromise<IImageLookup> {
             map[uniqueName] = {dataUrl, cachedDate: new Date().toJSON()};
         }
         return map;
-    }) as Q.IPromise<IImageLookup>;
+    });
 }
