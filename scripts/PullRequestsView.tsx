@@ -109,6 +109,7 @@ class InfoHeader extends React.Component<{}, {}> {
 }
 
 function inView(element: HTMLElement, fullyInView: boolean): boolean {
+    return true;/*
     const pageTop = $(window).scrollTop();
     const pageBottom = pageTop + $(window).height();
     const elementTop = $(element).offset().top;
@@ -118,7 +119,7 @@ function inView(element: HTMLElement, fullyInView: boolean): boolean {
         return ((pageTop < elementTop) && (pageBottom > elementBottom));
     } else {
         return ((elementTop <= pageBottom) && (elementBottom >= pageTop));
-    }
+    }*/
 }
 
 export function renderResults(pullRequests: GitPullRequest[], repositories: GitRepository[], filter: (pr: GitPullRequest) => boolean, getMore: () => void) {
@@ -137,7 +138,7 @@ export function renderResults(pullRequests: GitPullRequest[], repositories: GitR
             window.onscroll = () => {
                 if (probablyMoreAvailable && !limitResults && inView($(".show-more")[0], false)) {
                     getMore();
-                    delete window.onscroll;
+                    //delete window.onscroll;
                 }
             };
             ReactDom.render(

@@ -1,5 +1,4 @@
 import { renderMessage, renderResults, PAGE_SIZE } from "./PullRequestsView";
-import { fnmdp } from "./PullRequestSearch";
 import { GitPullRequestSearchCriteria, PullRequestStatus, GitPullRequest, GitRepository } from "azure-devops-extension-api/Git";
 //import { IdentityPicker } from "./identity/IdentityPicker";
 import { IdentityRef } from "azure-devops-extension-api/WebApi";
