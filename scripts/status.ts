@@ -1,6 +1,6 @@
 import { PullRequestStatus, GitPullRequest } from "azure-devops-extension-api/Git/index";
 
-const statusDisplayMappings = {
+export const statusDisplayMappings = {
     "Active": PullRequestStatus.Active,
     "Rejected": PullRequestStatus.Active,
     "Awaiting Author": PullRequestStatus.Active,
@@ -12,6 +12,8 @@ const statusDisplayMappings = {
     "Completed": PullRequestStatus.Completed,
     "All": PullRequestStatus.All
 };
+
+export const statusStrings = Object.keys(statusDisplayMappings);
 
 export function getStatusFromDisplayString(statusString: string) {
     if (statusString in statusDisplayMappings) {

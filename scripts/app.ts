@@ -43,7 +43,7 @@ const titleControl = <Combo>BaseControl.createIn(Combo, $(".title-box"), <ICombo
 const startDateControl = <Combo>BaseControl.createIn(Combo, $(".start-date-box"), <IComboOptions>{ type: "date-time" });
 const endDateControl = <Combo>BaseControl.createIn(Combo, $(".end-date-box"), <IComboOptions>{ type: "date-time" });
 const repoControl = <Combo>BaseControl.createIn(Combo, $(".repo-picker"), <IComboOptions>{});
-*/
+*
 
 let repositories: GitRepository[];
 new GitRestClient({}).getRepositories().then(
@@ -103,12 +103,14 @@ repoControl._bind("change", () => {
         params.repositoryId = getSelectedRepositoryId();
         runQueryFromParams();
     }
-});*/
+});*
 
 $(".refresh").click(() => runQueryFromParams());
 function runQueryFromParams() {
     runQuery(repositories, params);
-}
+}*/
+
+console.log('wtm');
 
 register(
     getContributionId(),

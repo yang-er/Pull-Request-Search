@@ -14,10 +14,6 @@
     </script>
     <style>
             /* inputs */
-            .wrapper {
-                margin: 10px 20px;
-                overflow-y: scroll;
-            }
             .input-controls > .status {
                 width: 8em;
             }
@@ -43,7 +39,7 @@
                 color: #565656;
             }
             .input-controls .refresh {
-                background-image: url(./img/refresh.png);
+                background-image: url(../img/refresh.png);
                 background-repeat: no-repeat;
                 background-position: 6px 6px;
                 padding-left: 25px !important;
@@ -109,8 +105,8 @@
             }
     </style>
 </head>
-<body class="wrapper">
-    <div id="root"></div>
+<body class="flex flex-row flex-grow">
+    <div id="root" class="flex flex-column flex-grow"></div>
     <script src="PullRequestSearch.js"></script>
 </body>
 </html>

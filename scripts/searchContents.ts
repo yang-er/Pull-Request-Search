@@ -81,5 +81,5 @@ function backToPullRequestSearch() {
     $("#contents-results").html("");
 }
 
-$(".search-button").click(search);
-$(".back-button").click(backToPullRequestSearch);
+//$(".search-button").click(search);
+//$(".back-button").click(backToPullRequestSearch);

@@ -8,6 +8,7 @@ const entries = {
 module.exports = {
     entry: entries,
     output: {
+        publicPath: "/dist/",
         filename: "[name].js"
     },
     resolve: {
@@ -51,5 +52,10 @@ module.exports = {
                { from: "**/*.html", context: "scripts" }
            ]
         })
-    ]
+    ],
+    devtool: "inline-source-map",
+    devServer: {
+        https: true,
+        port: 3000,
+    }
 };
