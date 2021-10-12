@@ -13,7 +13,7 @@ export { IPeoplePickerProvider };
 
 export class PeoplePickerProviderV2 implements IPeoplePickerProvider {
 
-    private readonly identityService = new CachedValue<IVssIdentityService>(
+    public readonly identityService = new CachedValue<IVssIdentityService>(
         () => getService<IVssIdentityService>(IdentityServiceIds.IdentityService)
     );
 
@@ -29,7 +29,7 @@ export class PeoplePickerProviderV2 implements IPeoplePickerProvider {
 
     public async getEntityFromUniqueAttribute(entityId: string): Promise<IIdentity> {
         const identityService = await this.identityService.getValue();
-        const x = await identityService.searchIdentitiesAsync(entityId, ["user"], ["ims", "source", "ad"], "uid");
+        const x = await identityService.searchIdentitiesAsync(entityId, undefined, undefined, "uid");
         return x[0];
     };
 

@@ -38,8 +38,8 @@
   "dependencies": {
     "azure-devops-extension-api": "^1.157.0",
     "azure-devops-extension-sdk": "^2.0.11",
-    "azure-devops-ui": "^2.167.14",
-    "azure-devops-ui-datepicker": "^2.167.15",
+    "azure-devops-ui": "^2.167.17",
+    "azure-devops-ui-datepicker": "^2.167.17",
     "react": "^16.8.1",
     "react-dom": "^16.8.1",
     "tslib": "^2.3.1"
