@@ -247,7 +247,7 @@ export async function updateFilter(
 
     filter.setState(filterState);
     if (Object.keys(queryParamsToRemove).length > 0) {
-        await navigation.setQueryParams(queryParamsToRemove);
+        navigation.setQueryParams(queryParamsToRemove);
     }
 
     subscribeFilter(filter, navigation);
