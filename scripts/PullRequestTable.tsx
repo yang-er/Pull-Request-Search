@@ -1,12 +1,17 @@
 import * as React from "react";
-import * as DevOps from "azure-devops-extension-sdk";
-import { GitPullRequest, GitRepository, PullRequestAsyncStatus } from "azure-devops-extension-api/Git";
+import { IdentityRef } from "azure-devops-extension-api/WebApi";
+import { GitPullRequest, PullRequestAsyncStatus, PullRequestStatus } from "azure-devops-extension-api/Git";
+import { IMeasurementStyle, ITableColumn, SimpleTableCell, Table, TwoLineTableCell } from "azure-devops-ui/Table";
 import { ZeroData, ZeroDataActionType } from "azure-devops-ui/ZeroData";
 import { IIdentityDetailsProvider, VssPersona } from "azure-devops-ui/VssPersona";
-import { IdentityRef } from "azure-devops-extension-api/WebApi";
-import { CommonServiceIds, IHostNavigationService } from "azure-devops-extension-api";
-import { computeStatus } from "./status";
+import { PillGroup, PillGroupOverflow } from "azure-devops-ui/PillGroup";
+import { ArrayItemProvider } from "azure-devops-ui/Utilities/Provider";
+import { Pill, PillSize, PillVariant } from "azure-devops-ui/Pill";
+import { ObservableValue } from "azure-devops-ui/Core/Observable";
+import { Tooltip } from "azure-devops-ui/TooltipEx";
 import { Icon } from "azure-devops-ui/Icon";
+import { Card } from "azure-devops-ui/Card";
+import { Ago } from "azure-devops-ui/Ago";
 import { css } from "azure-devops-ui/Util";
 
 function Persona(props: { identity: IdentityRef, vote?: number }) {
@@ -29,7 +34,7 @@ function Persona(props: { identity: IdentityRef, vote?: number }) {
             : props.vote === -10 ? { iconName: "StatusErrorFull", className: "rejected" }
             : { iconName: "CompletedSolid", className: "approved" };
         return (
-            <div className="relative">
+            <div className="relative" key={props.identity.id}>
                 <VssPersona identityDetailsProvider={provider} size="small" />
                 <Icon iconName={iconName} className={css("repos-pr-reviewer-vote absolute", className)} />
             </div>
@@ -41,53 +46,127 @@ function Persona(props: { identity: IdentityRef, vote?: number }) {
     }
 }
 
-export interface IPullRequestRowProps {
-    repository: GitRepository;
-    pullRequest: GitPullRequest;
-}
+const creatorColumn: ITableColumn<GitPullRequest> = {
+    id: "creator",
+    width: new ObservableValue(3),
+    widthStyle: IMeasurementStyle.REM,
+    renderCell: (rowIndex, columnIndex, tableColumn, tableItem) => (
+        <SimpleTableCell columnIndex={columnIndex} key={columnIndex} tableColumn={tableColumn}>
+            <Persona identity={tableItem.createdBy} />
+        </SimpleTableCell>
+    )
+};
 
-export function PullRequestRow(props: IPullRequestRowProps) {
-    const { pullRequest: pr, repository } = props;
+const titleColumn: ITableColumn<GitPullRequest> = {
+    id: "title",
+    width: new ObservableValue(-100),
+    renderCell: (rowIndex, columnIndex, tableColumn, pr) => (
+        <TwoLineTableCell
+            columnIndex={columnIndex}
+            tableColumn={tableColumn}
+            line1={(
+                <>
+                    <Tooltip overflowOnly>
+                        <div role="button" className="body-l flex-self-center text-ellipsis">
+                            {pr.title}
+                        </div>
+                    </Tooltip>
+                    {pr.isDraft && (
+                        <Pill
+                            className="repos-pr-list-draft-pill flex-no-shrink margin-left-4"
+                            size={PillSize.compact}
+                            variant={PillVariant.outlined}
+                        >
+                            Draft
+                        </Pill>
+                    )}
+                    {pr.status === PullRequestStatus.Completed && pr.completionOptions?.bypassPolicy && (
+                        <Pill
+                            className="repos-pr-list-conflicts-pill flex-no-shrink margin-left-4"
+                            size={PillSize.compact}
+                            variant={PillVariant.outlined}
+                        >
+                            Bypassed
+                        </Pill>
+                    )}
+                    {pr.mergeStatus === PullRequestAsyncStatus.Conflicts && (
+                        <Pill
+                            className="repos-pr-list-conflicts-pill flex-no-shrink margin-left-4"
+                            size={PillSize.compact}
+                            variant={PillVariant.outlined}
+                        >
+                            Conflicts
+                        </Pill>
+                    )}
+                    {pr.autoCompleteSetBy && pr.status === PullRequestStatus.Active && (
+                        <Pill
+                            className="repos-pr-list-auto-complete-pill flex-no-shrink margin-left-4"
+                            size={PillSize.compact}
+                            variant={PillVariant.outlined}
+                        >
+                            Auto-complete
+                        </Pill>
+                    )}
+                    {pr.labels && (
+                        <PillGroup
+                            className="margin-left-8"
+                            overflow={PillGroupOverflow.fade}
+                        >
+                            {pr.labels.map(label => (
+                                <Pill key={label.id} size={PillSize.compact}>
+                                    {label.name}
+                                </Pill>
+                            ))}
+                        </PillGroup>
+                    )}
+                </>
+            )}
+            line2={(
+                <div className="secondary-text body-s text-ellipsis">
+                    {`${pr.createdBy.displayName} request !${pr.pullRequestId} into`}
+                    <Icon iconName="GitLogo" className="padding-horizontal-4" />
+                    {pr.repository.name}
+                    <Icon iconName="OpenSource" className="padding-horizontal-4" />
+                    <span className="monospaced-xs">{pr.targetRefName.replace("refs/heads/", "")}</span>
+                </div>
+            )}
+        />
+    )
+};
 
-    const targetName = pr.targetRefName.replace("refs/heads/", "");
-    const url = pr.url.replace("/_apis/git/repositories/", "/_git/")
-        .replace("/pullRequests/", "/pullrequest/")
-        .replace(`/${repository.id}/`, `/${repository.name}/`)
-        .replace(`/${repository.project.id}/`, `/${repository.project.name}/`);
+const reviewersColumn: ITableColumn<GitPullRequest> = {
+    id: "reviewers",
+    width: new ObservableValue(10),
+    widthStyle: IMeasurementStyle.REM,
+    renderCell: (rowIndex, columnIndex, tableColumn, pr) => (
+        <SimpleTableCell columnIndex={columnIndex} key={columnIndex} tableColumn={tableColumn}>
+            {pr.reviewers.map(reviewer => (
+                <Persona identity={reviewer} vote={reviewer.vote} />
+            ))}
+        </SimpleTableCell>
+    )
+};
 
-    return (
-        <tr className="pr-row">
-            <td>
-                <Persona identity={pr.createdBy} />
-            </td>
-            <td>
-                <a href={url} target={"_blank"} rel={"noreferrer"} onClick={ev => {
-                    ev.stopPropagation();
-                    ev.preventDefault();
-                    DevOps.getService<IHostNavigationService>(CommonServiceIds.HostNavigationService).then(svc => {
-                        svc.openNewWindow(url, "");
-                    });
-                }}>{pr.title}</a>
-                <div>{`${pr.createdBy.displayName} requested !${pr.pullRequestId} into ${targetName} ${pr.creationDate}`}</div>
-                {pr.mergeStatus === PullRequestAsyncStatus.Conflicts ? <div className="conflicts">Conflicts</div> : null}
-            </td>
-            <td className="column-pad-right">
-                {computeStatus(pr)}
-            </td>
-            <td className="column-pad-right">
-                {pr.repository.name}
-            </td>
-            <td>
-                {pr.reviewers.map(reviewer => (
-                    <Persona identity={reviewer} vote={reviewer.vote} />
-                ))}
-            </td>
-        </tr>
-    );
-}
+const updatesColumn: ITableColumn<GitPullRequest> = {
+    id: "updates",
+    width: new ObservableValue(250),
+    renderCell: (rowIndex, columnIndex, tableColumn, pr) => (
+        <SimpleTableCell columnIndex={columnIndex} key={columnIndex} tableColumn={tableColumn}>
+            {pr.status === PullRequestStatus.Active ? (
+                <span>Created <Ago date={pr.creationDate} /></span>
+            ) : pr.status === PullRequestStatus.Completed ? (
+                <span>Completed <Ago date={pr.closedDate} /></span>
+            ) : pr.status === PullRequestStatus.Abandoned ? (
+                <span>Abandoned <Ago date={pr.closedDate} /></span>
+            ) : (
+                <span>Unknwon</span>
+            )}
+        </SimpleTableCell>
+    )
+};
 
 export interface IPullRequestTableProps {
-    pullRequests: GitPullRequest[];
+    pullRequests: ArrayItemProvider<GitPullRequest>;
 }
 
 export function PullRequestTable(props: IPullRequestTableProps) {
@@ -121,16 +200,18 @@ export function PullRequestTable(props: IPullRequestTableProps) {
         )
     } else {
         return (
-            <table>
-                <tbody>
-                    {props.pullRequests.map(pullRequest => (
-                        <PullRequestRow
-                            pullRequest={pullRequest}
-                            repository={pullRequest.repository}
-                        />
-                    ))}
-                </tbody>
-            </table>
+            <Card
+                className="margin-top-16 flex-grow bolt-table-card"
+                contentProps={{ contentPadding: false }}
+            >
+                <Table<GitPullRequest>
+                    columns={[ creatorColumn, titleColumn, reviewersColumn, updatesColumn ]}
+                    containerClassName="h-scroll-auto"
+                    itemProvider={props.pullRequests}
+                    showLines={true}
+                    showHeader={false}
+                />
+            </Card>
         );
     }
 }

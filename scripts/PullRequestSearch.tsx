@@ -14,10 +14,12 @@ import { PullRequestFilterBar, loadRepos, loadProject, updateFilter } from "./Pu
 import { WidgetHeader } from "./PullRequestHeader";
 import { PullRequestTable } from "./PullRequestTable";
 import { statusDisplayMappings } from "./status";
+import { ArrayItemProvider } from "azure-devops-ui/Utilities/Provider";
+import { ILinkProps } from "azure-devops-ui/Link";
 
 interface IAppState {
     repos: GitRepository[];
-    pullRequests: GitPullRequest[];
+    pullRequests: ArrayItemProvider<GitPullRequest>;
     project: IProjectInfo;
     creatorIdentity: ObservableValue<IIdentity | undefined>;
     reviewerIdentity: ObservableValue<IIdentity | undefined>;
@@ -38,7 +40,7 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
             pullRequestLoading: true,
             requestedPullRequestsLength: 0,
             repos: [],
-            pullRequests: [],
+            pullRequests: new ArrayItemProvider<GitPullRequest>([]),
             creatorIdentity: new ObservableValue<IIdentity | undefined>(undefined),
             reviewerIdentity: new ObservableValue<IIdentity | undefined>(undefined),
             project: {
@@ -50,7 +52,9 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
 
     public render() { return (
         <Page className="flex-grow custom-scrollbar scroll-auto-hide sample-page">
-            <WidgetHeader />
+            <WidgetHeader
+                onRefresh={() => this.queryFromRest(false)}
+            />
             <div className="page-content page-content-top">
                 {this.state.filterLoaded && (
                     <PullRequestFilterBar
@@ -63,28 +67,11 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
                 <div id="pull-request-search-container">
                     <div id="message">Loading repository metadata...</div>
                     <div id="results">
-                        <PullRequestTable
-                            pullRequests={this.state.pullRequests}
-                        />
                     </div>
                 </div>
-                <div id="pull-request-contents-search-container" hidden>
-                    <div className="input-controls">
-                        <div className="bowtie">
-                            <button className="back-button cta" aria-label="Back">Back</button>
-                        </div>
-                        <div>
-                            <label>Search</label>
-                            <div className="contents-search"></div>
-                        </div>
-                        <div className="bowtie">
-                            <button className="search-button cta" aria-label="Search">Search</button>
-                        </div>
-                    </div>
-                    <a className="contents-title" rel="noreferrer" target="_blank"></a>
-                    <div id="contents-message"></div>
-                    <div id="contents-results"></div>
-                </div>
+                <PullRequestTable
+                    pullRequests={this.state.pullRequests}
+                />
             </div>
         </Page>
     )}
@@ -167,16 +154,28 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
             append ? this.state.requestedPullRequestsLength : 0,
             100);
 
+        pullRequests.forEach(pr => {
+            const linkProps: ILinkProps = {
+                rel: 'noreferrer',
+                target: '_blank',
+                href: pr.url.replace("/_apis/git/repositories/", "/_git/")
+                    .replace("/pullRequests/", "/pullrequest/")
+                    .replace(`/${pr.repository.id}/`, `/${pr.repository.name}/`)
+                    .replace(`/${pr.repository.project.id}/`, `/${pr.repository.project.name}/`)
+            };
+            pr['linkProps'] = linkProps;
+        })
+
         if (append) {
+            this.state.pullRequests.value.push(...pullRequests);
             this.setState({
                 ...this.state,
-                pullRequests: [...this.state.pullRequests, ...pullRequests],
                 requestedPullRequestsLength: this.state.requestedPullRequestsLength + 100,
             });
         } else {
             this.setState({
                 ...this.state,
-                pullRequests: pullRequests,
+                pullRequests: new ArrayItemProvider(pullRequests),
                 requestedPullRequestsLength: 100,
             });
         }
