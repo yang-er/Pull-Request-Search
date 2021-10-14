@@ -1,18 +1,18 @@
 import * as React from "react";
 import { IdentityRef } from "azure-devops-extension-api/WebApi";
 import { GitPullRequest, PullRequestAsyncStatus, PullRequestStatus } from "azure-devops-extension-api/Git";
-import { IMeasurementStyle, ITableColumn, SimpleTableCell, Table, TwoLineTableCell } from "azure-devops-ui/Table";
+import { IMeasurementStyle, ITableBreakpoint, ITableColumn, SimpleTableCell, Table, TableColumnLayout, TwoLineTableCell } from "azure-devops-ui/Table";
 import { ZeroData, ZeroDataActionType } from "azure-devops-ui/ZeroData";
 import { IIdentityDetailsProvider, VssPersona } from "azure-devops-ui/VssPersona";
 import { PillGroup, PillGroupOverflow } from "azure-devops-ui/PillGroup";
-import { ArrayItemProvider } from "azure-devops-ui/Utilities/Provider";
 import { Pill, PillSize, PillVariant } from "azure-devops-ui/Pill";
-import { ObservableValue } from "azure-devops-ui/Core/Observable";
+import { IReadonlyObservableValue, ObservableArray, ObservableValue } from "azure-devops-ui/Core/Observable";
 import { Tooltip } from "azure-devops-ui/TooltipEx";
 import { Icon } from "azure-devops-ui/Icon";
 import { Card } from "azure-devops-ui/Card";
 import { Ago } from "azure-devops-ui/Ago";
 import { css } from "azure-devops-ui/Util";
+import { ScreenBreakpoints } from "azure-devops-ui/Core/Util/Screen";
 
 function Persona(props: { identity: IdentityRef, vote?: number }) {
     const provider: IIdentityDetailsProvider = {
@@ -48,8 +48,8 @@ function Persona(props: { identity: IdentityRef, vote?: number }) {
 
 const creatorColumn: ITableColumn<GitPullRequest> = {
     id: "creator",
-    width: new ObservableValue(3),
-    widthStyle: IMeasurementStyle.REM,
+    width: new ObservableValue(48),
+    columnLayout: TableColumnLayout.twoLinePrefix,
     renderCell: (rowIndex, columnIndex, tableColumn, tableItem) => (
         <SimpleTableCell columnIndex={columnIndex} key={columnIndex} tableColumn={tableColumn}>
             <Persona identity={tableItem.createdBy} />
@@ -60,6 +60,7 @@ const creatorColumn: ITableColumn<GitPullRequest> = {
 const titleColumn: ITableColumn<GitPullRequest> = {
     id: "title",
     width: new ObservableValue(-100),
+    columnLayout: TableColumnLayout.twoLine,
     renderCell: (rowIndex, columnIndex, tableColumn, pr) => (
         <TwoLineTableCell
             columnIndex={columnIndex}
@@ -136,8 +137,8 @@ const titleColumn: ITableColumn<GitPullRequest> = {
 
 const reviewersColumn: ITableColumn<GitPullRequest> = {
     id: "reviewers",
-    width: new ObservableValue(10),
-    widthStyle: IMeasurementStyle.REM,
+    width: new ObservableValue(160),
+    columnLayout: TableColumnLayout.singleLinePrefix,
     renderCell: (rowIndex, columnIndex, tableColumn, pr) => (
         <SimpleTableCell columnIndex={columnIndex} key={columnIndex} tableColumn={tableColumn}>
             {pr.reviewers.map(reviewer => (
@@ -150,6 +151,7 @@ const reviewersColumn: ITableColumn<GitPullRequest> = {
 const updatesColumn: ITableColumn<GitPullRequest> = {
     id: "updates",
     width: new ObservableValue(250),
+    columnLayout: TableColumnLayout.singleLine,
     renderCell: (rowIndex, columnIndex, tableColumn, pr) => (
         <SimpleTableCell columnIndex={columnIndex} key={columnIndex} tableColumn={tableColumn}>
             {pr.status === PullRequestStatus.Active ? (
@@ -165,8 +167,32 @@ const updatesColumn: ITableColumn<GitPullRequest> = {
     )
 };
 
+const prTableColumns = [ creatorColumn, titleColumn, reviewersColumn, updatesColumn ];
+const tableBreakpoints: ITableBreakpoint[] = [
+    {
+        breakpoint: ScreenBreakpoints.xsmall,
+        columnWidths: [0, -100, 0, 0]
+    },
+    {
+        breakpoint: ScreenBreakpoints.small,
+        columnWidths: [0, -100, 0, 160]
+    },
+    {
+        breakpoint: ScreenBreakpoints.medium,
+        columnWidths: [48, -100, 160, 160]
+    },
+    {
+        breakpoint: ScreenBreakpoints.large,
+        columnWidths: [48, -100, 240, 250]
+    },
+    {
+        breakpoint: ScreenBreakpoints.xlarge,
+        columnWidths: [48, -100, 320, 250]
+    }
+];
+
 export interface IPullRequestTableProps {
-    pullRequests: ArrayItemProvider<GitPullRequest>;
+    pullRequests: ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>;
 }
 
 export function PullRequestTable(props: IPullRequestTableProps) {
@@ -205,11 +231,12 @@ export function PullRequestTable(props: IPullRequestTableProps) {
                 contentProps={{ contentPadding: false }}
             >
                 <Table<GitPullRequest>
-                    columns={[ creatorColumn, titleColumn, reviewersColumn, updatesColumn ]}
+                    columns={prTableColumns}
                     containerClassName="h-scroll-auto"
                     itemProvider={props.pullRequests}
                     showLines={true}
                     showHeader={false}
+                    tableBreakpoints={tableBreakpoints}
                 />
             </Card>
         );

@@ -2,30 +2,30 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as DevOps from "azure-devops-extension-sdk";
 import { GitPullRequest, GitPullRequestSearchCriteria, GitRepository, GitRestClient } from "azure-devops-extension-api/Git";
-import { CommonServiceIds, IProjectInfo, IProjectPageService } from "azure-devops-extension-api/Common";
+import { CommonServiceIds, IGlobalMessagesService, IProjectInfo, IProjectPageService } from "azure-devops-extension-api/Common";
 import { IIdentity } from "azure-devops-extension-api/Identities";
 import { SurfaceBackground, SurfaceContext } from "azure-devops-ui/Surface";
 import { Page } from "azure-devops-ui/Page";
+import { ILinkProps } from "azure-devops-ui/Link";
 import { Filter } from "azure-devops-ui/Utilities/Filter";
-import { ObservableValue } from "azure-devops-ui/Core/Observable";
+import { IReadonlyObservableValue, ObservableArray, ObservableValue } from "azure-devops-ui/Core/Observable";
 import "azure-devops-ui/Core/override.css";
 
 import { PullRequestFilterBar, loadRepos, loadProject, updateFilter } from "./PullRequestFilterBar";
 import { WidgetHeader } from "./PullRequestHeader";
 import { PullRequestTable } from "./PullRequestTable";
-import { statusDisplayMappings } from "./status";
-import { ArrayItemProvider } from "azure-devops-ui/Utilities/Provider";
-import { ILinkProps } from "azure-devops-ui/Link";
+import { computeStatus, ensureStatus, statusDisplayMappings } from "./status";
 
 interface IAppState {
     repos: GitRepository[];
-    pullRequests: ArrayItemProvider<GitPullRequest>;
+    displayPullRequests: ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>;
     project: IProjectInfo;
     creatorIdentity: ObservableValue<IIdentity | undefined>;
     reviewerIdentity: ObservableValue<IIdentity | undefined>;
     filterLoaded: boolean;
     pullRequestLoading: boolean;
     requestedPullRequestsLength: number;
+    responsedPullRequestsLength: number;
 }
 
 class PullRequestSearchApp extends React.Component<{}, IAppState> {
@@ -39,8 +39,9 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
             filterLoaded: false,
             pullRequestLoading: true,
             requestedPullRequestsLength: 0,
+            responsedPullRequestsLength: 0,
             repos: [],
-            pullRequests: new ArrayItemProvider<GitPullRequest>([]),
+            displayPullRequests: new ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>([new ObservableValue<GitPullRequest | undefined>(undefined)]),
             creatorIdentity: new ObservableValue<IIdentity | undefined>(undefined),
             reviewerIdentity: new ObservableValue<IIdentity | undefined>(undefined),
             project: {
@@ -64,20 +65,17 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
                         reviewerIdentity={this.state.reviewerIdentity}
                     />
                 )}
-                <div id="pull-request-search-container">
-                    <div id="message">Loading repository metadata...</div>
-                    <div id="results">
-                    </div>
-                </div>
                 <PullRequestTable
-                    pullRequests={this.state.pullRequests}
+                    pullRequests={this.state.displayPullRequests}
                 />
             </div>
         </Page>
     )}
 
     public async componentDidMount() {
-        await DevOps.init();
+        await DevOps.init({
+            loaded: false
+        });
 
         const project = await loadProject();
         const repos = await loadRepos(project.id);
@@ -99,19 +97,31 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
             filterLoaded: true
         });
 
+        await DevOps.notifyLoadSucceeded();
         await DevOps.ready();
         this.queryFromRest(false);
     }
 
     public queryFromRest = async (append: boolean): Promise<void> => {
-        if (append && this.state.requestedPullRequestsLength > this.state.pullRequests.length) {
+        if (append && this.state.requestedPullRequestsLength > this.state.responsedPullRequestsLength) {
             return;
+        }
+
+        if (!append) {
+            this.state.displayPullRequests.removeAll();
+            this.state.displayPullRequests.push(new ObservableValue<GitPullRequest | undefined>(undefined));
+            this.setState({
+                ...this.state,
+                responsedPullRequestsLength: 0,
+                requestedPullRequestsLength: 0,
+            });
         }
 
         const projectService = await DevOps.getService<IProjectPageService>(CommonServiceIds.ProjectPageService);
         const project = await projectService.getProject();
         const projectId = project!.id;
         const filterState = this.filter.getState();
+        let postFilter: ((pr: GitPullRequest) => boolean)[] = [];
 
         const criteria = {
             includeLinks: true,
@@ -122,6 +132,21 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
             const value = filterState['status']!.value as string[];
             if (value.length === 1) {
                 criteria['status'] = statusDisplayMappings[value[0]];
+                postFilter.push(pr => ensureStatus(pr, value[0]));
+            }
+        }
+
+        if ('startDate' in filterState) {
+            const value = filterState['startDate']!.value as (Date | undefined);
+            if (value !== undefined) {
+                postFilter.push(pr => pr.creationDate.getTime() >= value.getTime());
+            }
+        }
+
+        if ('endDate' in filterState) {
+            const value = filterState['endDate']!.value as (Date | undefined);
+            if (value !== undefined) {
+                postFilter.push(pr => pr.creationDate.getTime() <= value.getTime());
             }
         }
 
@@ -146,12 +171,19 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
             }
         }
 
+        if ('title' in filterState) {
+            const value = filterState['title']!.value as (string | undefined);
+            if (value !== undefined) {
+                postFilter.push(pr => pr.title.indexOf(value) !== -1);
+            }
+        }
+
         const gitClient = new GitRestClient({ rootPath: 'https://dev.azure.com/tlylz/' });
         const pullRequests = await gitClient.getPullRequestsByProject(
             projectId,
             criteria as GitPullRequestSearchCriteria,
             undefined,
-            append ? this.state.requestedPullRequestsLength : 0,
+            this.state.requestedPullRequestsLength,
             100);
 
         pullRequests.forEach(pr => {
@@ -164,21 +196,29 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
                     .replace(`/${pr.repository.project.id}/`, `/${pr.repository.project.name}/`)
             };
             pr['linkProps'] = linkProps;
-        })
+        });
 
-        if (append) {
-            this.state.pullRequests.value.push(...pullRequests);
-            this.setState({
-                ...this.state,
-                requestedPullRequestsLength: this.state.requestedPullRequestsLength + 100,
-            });
-        } else {
-            this.setState({
-                ...this.state,
-                pullRequests: new ArrayItemProvider(pullRequests),
-                requestedPullRequestsLength: 100,
-            });
+        const filterFunc = postFilter.length > 0 ? postFilter.reduce((prev, next) => pr => prev(pr) && next(pr)) : pr => true;
+        const displayPrs = pullRequests.filter(filterFunc);
+
+        this.state.displayPullRequests.pop();
+        this.state.displayPullRequests.push(...displayPrs);
+        this.setState({
+            ...this.state,
+            responsedPullRequestsLength: this.state.responsedPullRequestsLength + pullRequests.length,
+            requestedPullRequestsLength: this.state.requestedPullRequestsLength + 100,
+        });
+
+        if (this.state.requestedPullRequestsLength === this.state.responsedPullRequestsLength) {
+            this.state.displayPullRequests.push(new ObservableValue<GitPullRequest | undefined>(undefined));
         }
+
+        const globalMessagesSvc = await DevOps.getService<IGlobalMessagesService>(CommonServiceIds.GlobalMessagesService);
+        globalMessagesSvc.addToast({
+            duration: 5000,
+            message: `${this.state.displayPullRequests.length}/${this.state.responsedPullRequestsLength} pull requests match title, date and status criteria.`,
+            forceOverrideExisting: true
+        });
     }
 }
 

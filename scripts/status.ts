@@ -13,6 +13,13 @@ export const statusDisplayMappings = {
     "All": PullRequestStatus.All
 };
 
+const notFilteredStatusDisplayMappings = {
+    "Active": PullRequestStatus.Active,
+    "Abandoned": PullRequestStatus.Abandoned,
+    "Completed": PullRequestStatus.Completed,
+    "All": PullRequestStatus.All
+};
+
 export const statusStrings = Object.keys(statusDisplayMappings);
 
 export function getStatusFromDisplayString(statusString: string) {
@@ -38,5 +45,13 @@ export function computeStatus(pr: GitPullRequest): string {
         return "Approved";
     } else {
         return "Awaiting Approval";
+    }
+}
+
+export function ensureStatus(pr: GitPullRequest, status: string): boolean {
+    if (status in notFilteredStatusDisplayMappings) {
+        return pr.status === notFilteredStatusDisplayMappings[status];
+    } else {
+        return computeStatus(pr) === status;
     }
 }
