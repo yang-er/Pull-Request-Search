@@ -132,6 +132,7 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
         }
 
         const result = await Querying.loadPullRequests(
+            this.state.repos,
             this.filter.getState(),
             this.state.requestedPullRequestsLength,
             100

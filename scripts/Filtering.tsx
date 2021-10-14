@@ -134,7 +134,7 @@ function subscribeFilter(
             const newValue = state[identity]!.value as (IIdentity | undefined);
             console.log(newValue);
             queryParamsToChange[identity] = newValue === undefined ? ''
-                : newValue.originId;
+                : (newValue['localId'] as (string | undefined)) ?? newValue.originId;
         });
 
         if ('status' in state) {
@@ -249,7 +249,10 @@ export async function updateFilter(
     subscribeFilter(filter, navigation, refreshData);
 }
 
-export function createQueryCriteria(filterState: IFilterState): {
+export function createQueryCriteria(
+    repos: GitRepository[],
+    filterState: IFilterState
+): {
     criteria: GitPullRequestSearchCriteria;
     localFilter: (pr: GitPullRequest) => boolean;
 } {
@@ -285,21 +288,21 @@ export function createQueryCriteria(filterState: IFilterState): {
     if ('creator' in filterState) {
         const value = filterState['creator']!.value as (IIdentity | undefined);
         if (value !== undefined) {
-            criteria['creatorId'] = value.originId;
+            criteria['creatorId'] = (value['localId'] as (string | undefined)) ?? value.originId;
         }
     }
 
     if ('reviewer' in filterState) {
         const value = filterState['reviewer']!.value as (IIdentity | undefined);
         if (value !== undefined) {
-            criteria['reviewerId'] = value.originId;
+            criteria['reviewerId'] = (value['localId'] as (string | undefined)) ?? value.originId;
         }
     }
 
     if ('repo' in filterState) {
         const value = filterState['repo']!.value as string[];
         if (value.length === 1) {
-            criteria['repositoryId'] = this.state.repos.filter(repo => repo.name === value[0] || repo.id === value[0])[0].id;
+            criteria['repositoryId'] = repos.filter(repo => repo.name === value[0] || repo.id === value[0])[0].id;
         }
     }
 

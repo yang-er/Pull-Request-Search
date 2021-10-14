@@ -107,6 +107,7 @@ export async function loadRepos(projectId?: string): Promise<GitRepository[]> {
 }
 
 export async function loadPullRequests(
+    repos: GitRepository[],
     filterState: IFilterState,
     skip: number,
     take: number
@@ -117,7 +118,7 @@ export async function loadPullRequests(
     const projectService = await getService<IProjectPageService>(CommonServiceIds.ProjectPageService);
     const project = await projectService.getProject();
     const projectId = project!.id;
-    const queryCriteria = createQueryCriteria(filterState);
+    const queryCriteria = createQueryCriteria(repos, filterState);
 
     const pullRequests = await getClient(GitRestClient).getPullRequestsByProject(
         projectId,
