@@ -1,0 +1,81 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <script type="text/javascript">
+    var appInsights=window.appInsights||function(config){
+        function i(config){t[config]=function(){var i=arguments;t.queue.push(function(){t[config].apply(t,i)})}}var t={config:config},u=document,e=window,o="script",s="AuthenticatedUserContext",h="start",c="stop",l="Track",a=l+"Event",v=l+"Page",y=u.createElement(o),r,f;y.src=config.url||"https://az416426.vo.msecnd.net/scripts/a/ai.0.js";u.getElementsByTagName(o)[0].parentNode.appendChild(y);try{t.cookie=u.cookie}catch(p){}for(t.queue=[],t.version="1.0",r=["Event","Exception","Metric","PageView","Trace","Dependency"];r.length;)i("track"+r.pop());return i("set"+s),i("clear"+s),i(h+a),i(c+a),i(h+v),i(c+v),i("flush"),config.disableExceptionTracking||(r="onerror",i("_"+r),f=e[r],e[r]=function(config,i,u,e,o){var s=f&&f(config,i,u,e,o);return s!==!0&&t["_"+r](config,i,u,e,o),s}),t
+        }({
+            instrumentationKey:"2d2b0bf6-74d0-48c4-ae88-efb939c42645"
+        });
+        
+        window.appInsights=appInsights;
+        appInsights.trackPageView();
+    </script>
+    <link href="vssui.css" rel="stylesheet" />
+    <style>
+        .collapsed-filter-bar .bolt-identitypickerdropdown-textField .bolt-textfield-input,
+        .collapsed-filter-bar .bolt-date-picker-input {
+            width: 90px;
+        }
+        .collapsed-filter-bar .bolt-identitypickerdropdown-textField {
+            min-width: initial;
+        }
+        .repos-pr-reviewer-vote {
+            border: 1px solid;
+            border-color: rgba(255, 255, 255,1);
+            border-color: rgba(var(--palette-neutral-0, 255, 255, 255), 1);
+            text-align: right;
+            background: rgba(255, 255, 255, 1);
+            background: rgba(var(--palette-neutral-0, 255, 255, 255), 1);
+            cursor: default;
+            bottom: -3px;
+            right: -2px;
+            border-radius: 10px;
+            line-height: 12px;
+            font-size: .75rem;
+        }
+        .repos-pr-reviewer-vote.approved {
+            color: rgba(16,124,16,1);
+            color: var(--status-success-foreground, rgba(16, 124, 16, 1));
+        }
+        .repos-pr-reviewer-vote.waiting {
+            color: rgba(250,157,45,1);
+            color: var(--status-warning-foreground, rgba(250, 157, 45, 1));
+        }
+        .repos-pr-reviewer-vote.rejected {
+            color: rgba(205,74,69,1);
+            color: var(--status-error-foreground, rgba(205, 74, 69, 1));
+        }
+        .repos-pr-reviewer-vote.tooltip {
+            border-color: rgba(51, 51, 51, .95);
+            border-color: rgba(var(--palette-neutral-80, 51, 51, 51), .95);
+        }
+        .bolt-pill.repos-pr-list-draft-pill.outlined {
+            border-color: rgba(0, 90, 158, 1);
+            border-color: var(--communication-foreground, rgba(0, 90, 158, 1));
+            color: rgba(0, 90, 158, 1);
+            color: var(--communication-foreground, rgba(0, 90, 158, 1));
+        }
+        .bolt-pill.repos-pr-list-conflicts-pill.outlined {
+            border-color: rgba(205, 74, 69, 1);
+            border-color: var(--status-error-foreground, rgba(205, 74, 69, 1));
+            color: rgba(205, 74, 69, 1);
+            color: var(--status-error-foreground, rgba(205, 74, 69, 1));
+        }
+        .bolt-pill.repos-pr-list-auto-complete-pill.outlined {
+            border-color: rgba(184, 94, 6, 1);
+            border-color: var(--status-warning-text, rgba(184, 94, 6, 1));
+            color: rgba(184, 94, 6, 1);
+            color: var(--status-warning-text, rgba(184, 94, 6, 1));
+        }
+    </style>
+</head>
+<body class="flex flex-row flex-grow">
+    <div id="root" class="flex flex-column flex-grow"></div>
+    <script src="react.js"></script>
+    <script src="vssui.js"></script>
+    <script src="tfsapi.js"></script>
+    <script src="PullRequestSearch.js"></script>
+</body>
+</html>

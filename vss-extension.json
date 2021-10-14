@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1,
     "id": "pull-request-search",
-    "version": "1.13.104",
+    "version": "1.13.126",
     "name": "Pull Request Search",
     "scopes": [ 
         "vso.code",
@@ -43,16 +43,12 @@
             "addressable": true
         },
         {
-            "path": "build",
-            "addressable": true
-        },
-        {
-            "path": "index.html",
+            "path": "dist",
             "addressable": true
         }
     ],
     "categories": [
-        "Code"
+        "Azure Repos"
     ],
     "contributions": [
         {
@@ -64,7 +60,8 @@
             "properties": {
                 "name": "Pull Request Search",
                 "order": 30,
-                "uri": "index.html"
+                "uri": "dist/index.html",
+                "iconName": "Search"
             }
         }
     ]
