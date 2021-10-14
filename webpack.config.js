@@ -1,5 +1,7 @@
 const path = require("path");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 
 const entries = {
     'PullRequestSearch': './scripts\\PullRequestSearch'
@@ -32,7 +34,7 @@ module.exports = {
             },
             {
                 test: /\.css$/,
-                use: ["style-loader", "css-loader"],
+                use: [MiniCssExtractPlugin.loader, "css-loader"],
             },
             {
                 test: /\.woff$/,
@@ -47,15 +49,47 @@ module.exports = {
         ]
     },
     plugins: [
+        new MiniCssExtractPlugin({
+            filename: 'vssui.css',
+            chunkFilename: '[id].css'
+        }),
         new CopyWebpackPlugin({
            patterns: [ 
                { from: "**/*.html", context: "scripts" }
            ]
         })
     ],
-    devtool: "inline-source-map",
+    optimization: {
+        splitChunks: {
+            cacheGroups: {
+                react: {
+                    test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+                    name: 'react',
+                    chunks: 'all',
+                },
+                vssui: {
+                    test: /[\\/]node_modules[\\/](azure-devops-ui|azure-devops-ui-datepicker)[\\/]/,
+                    name: 'vssui',
+                    chunks: 'all',
+                },
+                tfsapi: {
+                    test: /[\\/]node_modules[\\/](azure-devops-extension-api|azure-devops-extension-sdk)[\\/]/,
+                    name: 'tfsapi',
+                    chunks: 'all',
+                },
+            },
+        },
+        minimizer: [
+            `...`,
+            new CssMinimizerPlugin(),
+        ],
+    },
     devServer: {
         https: true,
         port: 3000,
     }
 };
+
+if (process.env.NODE_ENV === "development") {
+    module.exports.devtool = "inline-source-map";
+}

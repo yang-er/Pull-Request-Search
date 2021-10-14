@@ -1,6 +1,5 @@
 {
     "id": "pull-request-search-dev",
     "name": "Pull Request Search: Development Edition",
-    "public": false,
-    "baseUri": "https://localhost:3000"
+    "public": false
 }

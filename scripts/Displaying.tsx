@@ -369,29 +369,10 @@ export function PluginTable(props: IPluginTableProps) {
     if (props.pullRequests.length === 0) {
         return (
             <ZeroData
-                primaryText="This is the primary text"
-                secondaryText={
-                    <span>
-                        This secondary text contains a{" "}
-                        <a
-                            rel="nofollow noopener"
-                            target="_blank"
-                            href="https://bing.com"
-                            aria-label="link to bing.com"
-                        >
-                            link
-                        </a>{" "}
-                        to somewhere else. Lorem ipsum dolor sit amet, consectetur adipiscing
-                        elit.
-                    </span>
-                }
-                imageAltText="Bars"
+                primaryText="No pull requests match the given criteria"
+                secondaryText="Pull requests allow you to review code and help ensure quality before merge."
+                imageAltText="No pull requests match the given criteria"
                 imagePath="https://cdn.vsassets.io/ext/ms.vss-code-web/pr-list/Content/emptyPRList.e7LLYcW6Lt_C0mQv.svg"
-                actionText="Button"
-                actionType={ZeroDataActionType.ctaButton}
-                onActionClick={(event, item) =>
-                    alert("Hey, you clicked the button for " + item!.primaryText)
-                }
             />
         )
     } else {
