@@ -1,109 +1,79 @@
-import * as React from "react";
 import * as DevOps from "azure-devops-extension-sdk";
-import { CommonServiceIds, getClient, IHostNavigationService, IProjectPageService } from "azure-devops-extension-api";
-import { GitRepository, GitRestClient } from "azure-devops-extension-api/Git";
-import { IIdentity } from "azure-devops-extension-api/Identities";
-import { FilterBar } from "azure-devops-ui/FilterBar";
-import { KeywordFilterBarItem } from "azure-devops-ui/TextFilterBarItem";
 import { Filter, IFilterState } from "azure-devops-ui/Utilities/Filter";
-import { DropdownFilterBarItem } from "azure-devops-ui/Dropdown";
-import { IdentityPickerDropdownFilterBarItem } from "azure-devops-ui/IdentityPicker";
 import { ObservableValue } from "azure-devops-ui/Core/Observable";
 
-import { DatePickerFilterBarItem } from "azure-devops-ui-datepicker";
-import { PeoplePickerProviderV2 } from "./PeoplePickerProviderV2";
-import { statusStrings } from "./status";
+import {
+    CommonServiceIds,
+    IHostNavigationService
+} from "azure-devops-extension-api";
 
-const pickerProvider = new PeoplePickerProviderV2();
+import {
+    GitPullRequest,
+    GitPullRequestSearchCriteria,
+    GitRepository,
+    PullRequestStatus
+} from "azure-devops-extension-api/Git";
 
-export interface IPullRequestFilterBarProps {
-    repos: GitRepository[];
-    filter: Filter;
-    creatorIdentity: ObservableValue<IIdentity | undefined>;
-    reviewerIdentity: ObservableValue<IIdentity | undefined>;
-}
+import {
+    IdentityServiceIds,
+    IIdentity,
+    IVssIdentityService
+} from "azure-devops-extension-api/Identities";
 
-export function PullRequestFilterBar(props: IPullRequestFilterBarProps): JSX.Element {
-    return (
+export const statusDisplayMappings = {
+    "Active": PullRequestStatus.Active,
+    "Rejected": PullRequestStatus.Active,
+    "Awaiting Author": PullRequestStatus.Active,
+    "Approved with suggestions": PullRequestStatus.Active,
+    "Approved": PullRequestStatus.Active,
+    "Awaiting Approval": PullRequestStatus.Active,
+    "Draft": PullRequestStatus.Active,
+    "Abandoned": PullRequestStatus.Abandoned,
+    "Completed": PullRequestStatus.Completed,
+    "All": PullRequestStatus.All
+};
 
-        <FilterBar
-            filter={props.filter}
-            className="collapsed-filter-bar"
-        >
+const notFilteredStatusDisplayMappings = {
+    "Active": PullRequestStatus.Active,
+    "Abandoned": PullRequestStatus.Abandoned,
+    "Completed": PullRequestStatus.Completed,
+    "All": PullRequestStatus.All
+};
 
-            <KeywordFilterBarItem
-                filterItemKey="title"
-                placeholder="Filter by title"
-            />
+export const statusStrings = Object.keys(statusDisplayMappings);
 
-            <DropdownFilterBarItem
-                filterItemKey="status"
-                filter={props.filter}
-                items={statusStrings.map(text => ({ id: text, text })).filter(i => i.text !== "All")}
-                placeholder="Status"
-            />
-
-            <IdentityPickerDropdownFilterBarItem
-                filterItemKey="creator"
-                filter={props.filter}
-                pickerProvider={pickerProvider}
-                initialValue={props.creatorIdentity}
-                editPlaceholder="Creator"
-                placeholder="Creator"
-            />
-
-            <IdentityPickerDropdownFilterBarItem
-                filterItemKey="reviewer"
-                filter={props.filter}
-                pickerProvider={pickerProvider}
-                initialValue={props.reviewerIdentity}
-                editPlaceholder="Reviewer"
-                placeholder="Reviewer"
-            />
-
-            <DatePickerFilterBarItem
-                filterItemKey="startDate"
-                filter={props.filter}
-                placeholder="Start Date"
-                hasClearButton={true}
-            />
-
-            <DatePickerFilterBarItem
-                filterItemKey="endDate"
-                filter={props.filter}
-                placeholder="End Date"
-                hasClearButton={true}
-            />
-
-            <DropdownFilterBarItem
-                filterItemKey="repo"
-                filter={props.filter}
-                items={props.repos.map(repo => ({
-                    id: repo.name,
-                    text: repo.name
-                }))}
-                showItemsWhileSearching={true}
-                dismissOnSelect
-                placeholder="Repo"
-            />
-
-        </FilterBar>
-
-    );
-}
-
-export async function loadProject() {
-    const projectService = await DevOps.getService<IProjectPageService>(CommonServiceIds.ProjectPageService);
-    const project = await projectService.getProject();
-    if (project === undefined) {
-        throw "Unknown loading context.";
+function getStatusFromDisplayString(statusString: string) {
+    if (statusString in statusDisplayMappings) {
+        return statusDisplayMappings[statusString];
     }
-
-    return project;
+    return PullRequestStatus.Active;
 }
 
-export async function loadRepos(projectId?: string) {
-    return await getClient(GitRestClient).getRepositories(projectId, true);
+function computeStatus(pr: GitPullRequest): string {
+    if (pr.status !== PullRequestStatus.Active) {
+        return PullRequestStatus[pr.status];
+    }
+    if (pr.isDraft) {
+        return "Draft";
+    } else if (pr.reviewers.find(reviewer => reviewer.vote === -10)) {
+        return "Rejected";
+    } else if (pr.reviewers.find(reviewer => reviewer.vote === -5)) {
+        return "Awaiting Author";
+    } else if (pr.reviewers.find(reviewer => reviewer.vote === 5)) {
+        return "Approved with suggestions";
+    } else if (pr.reviewers.find(reviewer => reviewer.vote === 10)) {
+        return "Approved";
+    } else {
+        return "Awaiting Approval";
+    }
+}
+
+function ensureStatus(pr: GitPullRequest, status: string): boolean {
+    if (status in notFilteredStatusDisplayMappings) {
+        return pr.status === notFilteredStatusDisplayMappings[status];
+    } else {
+        return computeStatus(pr) === status;
+    }
 }
 
 class WaitAndSee {
@@ -225,7 +195,7 @@ export async function updateFilter(
 
     const identityLoad = async (identityKey: string, value: ObservableValue<IIdentity | undefined>) => {
         if (identityKey in queryParams) {
-            const service = await pickerProvider.identityService.getValue();
+            const service = await DevOps.getService<IVssIdentityService>(IdentityServiceIds.IdentityService);
             const identities = await service.searchIdentitiesAsync(queryParams[identityKey], undefined, undefined, 'uid');
             if (identities.length !== 1) {
                 queryParamsToRemove[identityKey] = '';
@@ -277,4 +247,71 @@ export async function updateFilter(
     }
 
     subscribeFilter(filter, navigation, refreshData);
+}
+
+export function createQueryCriteria(filterState: IFilterState): {
+    criteria: GitPullRequestSearchCriteria;
+    localFilter: (pr: GitPullRequest) => boolean;
+} {
+    const postFilter: ((pr: GitPullRequest) => boolean)[] = [];
+
+    const criteria = {
+        includeLinks: true,
+        status: statusDisplayMappings.All,
+    };
+
+    if ('status' in filterState) {
+        const value = filterState['status']!.value as string[];
+        if (value.length === 1) {
+            criteria['status'] = statusDisplayMappings[value[0]];
+            postFilter.push(pr => ensureStatus(pr, value[0]));
+        }
+    }
+
+    if ('startDate' in filterState) {
+        const value = filterState['startDate']!.value as (Date | undefined);
+        if (value !== undefined) {
+            postFilter.push(pr => pr.creationDate.getTime() >= value.getTime());
+        }
+    }
+
+    if ('endDate' in filterState) {
+        const value = filterState['endDate']!.value as (Date | undefined);
+        if (value !== undefined) {
+            postFilter.push(pr => pr.creationDate.getTime() <= value.getTime());
+        }
+    }
+
+    if ('creator' in filterState) {
+        const value = filterState['creator']!.value as (IIdentity | undefined);
+        if (value !== undefined) {
+            criteria['creatorId'] = value.originId;
+        }
+    }
+
+    if ('reviewer' in filterState) {
+        const value = filterState['reviewer']!.value as (IIdentity | undefined);
+        if (value !== undefined) {
+            criteria['reviewerId'] = value.originId;
+        }
+    }
+
+    if ('repo' in filterState) {
+        const value = filterState['repo']!.value as string[];
+        if (value.length === 1) {
+            criteria['repositoryId'] = this.state.repos.filter(repo => repo.name === value[0] || repo.id === value[0])[0].id;
+        }
+    }
+
+    if ('title' in filterState) {
+        const value = filterState['title']!.value as (string | undefined);
+        if (value !== undefined) {
+            postFilter.push(pr => pr.title.toLowerCase().indexOf(value.toLowerCase()) !== -1);
+        }
+    }
+
+    return {
+        criteria: criteria as GitPullRequestSearchCriteria,
+        localFilter: postFilter.length > 0 ? postFilter.reduce((prev, next) => pr => prev(pr) && next(pr)) : pr => true
+    };
 }

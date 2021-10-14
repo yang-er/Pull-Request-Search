@@ -1,97 +1,98 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as DevOps from "azure-devops-extension-sdk";
-import { GitPullRequest, GitPullRequestSearchCriteria, GitRepository, GitRestClient } from "azure-devops-extension-api/Git";
-import { CommonServiceIds, getClient, IGlobalMessagesService, IProjectInfo, IProjectPageService } from "azure-devops-extension-api/Common";
+import { CommonServiceIds, IGlobalMessagesService, IProjectInfo } from "azure-devops-extension-api/Common";
+import { GitPullRequest, GitRepository } from "azure-devops-extension-api/Git";
 import { IIdentity } from "azure-devops-extension-api/Identities";
-import { SurfaceBackground, SurfaceContext } from "azure-devops-ui/Surface";
 import { Page } from "azure-devops-ui/Page";
-import { ILinkProps } from "azure-devops-ui/Link";
 import { Filter } from "azure-devops-ui/Utilities/Filter";
+import { SurfaceBackground, SurfaceContext } from "azure-devops-ui/Surface";
 import { IReadonlyObservableValue, ObservableArray, ObservableValue } from "azure-devops-ui/Core/Observable";
 import "azure-devops-ui/Core/override.css";
 
-import { PullRequestFilterBar, loadRepos, loadProject, updateFilter } from "./PullRequestFilterBar";
-import { WidgetHeader } from "./PullRequestHeader";
-import { PullRequestTable } from "./PullRequestTable";
-import { computeStatus, ensureStatus, statusDisplayMappings } from "./status";
+import * as Querying from "./Querying";
+import * as Filtering from "./Filtering";
+import { PluginFilterBar, PluginHeader, PluginTable } from "./Displaying";
 
 interface IAppState {
     repos: GitRepository[];
-    displayPullRequests: ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>;
     project: IProjectInfo;
     creatorIdentity: ObservableValue<IIdentity | undefined>;
     reviewerIdentity: ObservableValue<IIdentity | undefined>;
     filterLoaded: boolean;
     pullRequestLoading: boolean;
+    displayPullRequests: ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>;
     requestedPullRequestsLength: number;
     responsedPullRequestsLength: number;
 }
 
 class PullRequestSearchApp extends React.Component<{}, IAppState> {
 
-    private filter : Filter;
+    private filter = new Filter();
+    private identityProvider = new Querying.IdentityPickerProvider();
 
     constructor() {
         super({});
         this.filter = new Filter();
         this.state = {
+            repos: [],
             filterLoaded: false,
             pullRequestLoading: true,
+            project: { id: '', name: '' },
             requestedPullRequestsLength: 0,
             responsedPullRequestsLength: 0,
-            repos: [],
-            displayPullRequests: new ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>([new ObservableValue<GitPullRequest | undefined>(undefined)]),
             creatorIdentity: new ObservableValue<IIdentity | undefined>(undefined),
             reviewerIdentity: new ObservableValue<IIdentity | undefined>(undefined),
-            project: {
-                id: '',
-                name: ''
-            }
+            displayPullRequests: new ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>([
+                new ObservableValue<GitPullRequest | undefined>(undefined)
+            ]),
         };
     }
 
-    public render() { return (
-        <Page className="flex-grow custom-scrollbar scroll-auto-hide sample-page">
-            <WidgetHeader
-                onRefresh={() => this.queryFromRest(false)}
-            />
-            <div className="page-content page-content-top">
-                {this.state.filterLoaded && (
-                    <PullRequestFilterBar
-                        filter={this.filter}
-                        repos={this.state.repos}
-                        creatorIdentity={this.state.creatorIdentity}
-                        reviewerIdentity={this.state.reviewerIdentity}
-                    />
-                )}
-                <PullRequestTable
-                    pullRequests={this.state.displayPullRequests}
-                    loadMore={() => {
-                        if (!this.state.pullRequestLoading) {
-                            this.queryFromRest(true);
-                        }
-                    }}
+    public render() {
+        return (
+            <Page
+                className="flex-grow custom-scrollbar scroll-auto-hide sample-page"
+            >
+                <PluginHeader
+                    onRefreshActivate={() => this.queryFromRest(false)}
                 />
-            </div>
-        </Page>
-    )}
+                <div
+                    className="page-content page-content-top"
+                >
+                    {this.state.filterLoaded && (
+                        <PluginFilterBar
+                            filter={this.filter}
+                            repos={this.state.repos}
+                            creatorIdentity={this.state.creatorIdentity}
+                            reviewerIdentity={this.state.reviewerIdentity}
+                            pickerProvider={this.identityProvider}
+                        />
+                    )}
+                    <PluginTable
+                        pullRequests={this.state.displayPullRequests}
+                        loadMore={() => this.state.pullRequestLoading || this.queryFromRest(true)}
+                    />
+                </div>
+            </Page>
+        );
+    }
 
     public async componentDidMount() {
         await DevOps.init({
             loaded: false
         });
 
-        const project = await loadProject();
-        const repos = await loadRepos(project.id);
-        
+        const project = await Querying.loadProject();
+        const repos = await Querying.loadRepos(project.id);
+
         this.setState({
             ...this.state,
             project,
             repos
         });
 
-        await updateFilter(
+        await Filtering.updateFilter(
             this.filter,
             repos,
             this.state.creatorIdentity,
@@ -127,98 +128,20 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
             this.setState({
                 ...this.state,
                 pullRequestLoading: true,
-            })
+            });
         }
 
-        const projectService = await DevOps.getService<IProjectPageService>(CommonServiceIds.ProjectPageService);
-        const project = await projectService.getProject();
-        const projectId = project!.id;
-        const filterState = this.filter.getState();
-        let postFilter: ((pr: GitPullRequest) => boolean)[] = [];
-
-        const criteria = {
-            includeLinks: true,
-            status: statusDisplayMappings.All,
-        };
-
-        if ('status' in filterState) {
-            const value = filterState['status']!.value as string[];
-            if (value.length === 1) {
-                criteria['status'] = statusDisplayMappings[value[0]];
-                postFilter.push(pr => ensureStatus(pr, value[0]));
-            }
-        }
-
-        if ('startDate' in filterState) {
-            const value = filterState['startDate']!.value as (Date | undefined);
-            if (value !== undefined) {
-                postFilter.push(pr => pr.creationDate.getTime() >= value.getTime());
-            }
-        }
-
-        if ('endDate' in filterState) {
-            const value = filterState['endDate']!.value as (Date | undefined);
-            if (value !== undefined) {
-                postFilter.push(pr => pr.creationDate.getTime() <= value.getTime());
-            }
-        }
-
-        if ('creator' in filterState) {
-            const value = filterState['creator']!.value as (IIdentity | undefined);
-            if (value !== undefined) {
-                criteria['creatorId'] = value.originId;
-            }
-        }
-
-        if ('reviewer' in filterState) {
-            const value = filterState['reviewer']!.value as (IIdentity | undefined);
-            if (value !== undefined) {
-                criteria['reviewerId'] = value.originId;
-            }
-        }
-
-        if ('repo' in filterState) {
-            const value = filterState['repo']!.value as string[];
-            if (value.length === 1) {
-                criteria['repositoryId'] = this.state.repos.filter(repo => repo.name === value[0] || repo.id === value[0])[0].id;
-            }
-        }
-
-        if ('title' in filterState) {
-            const value = filterState['title']!.value as (string | undefined);
-            if (value !== undefined) {
-                postFilter.push(pr => pr.title.toLowerCase().indexOf(value.toLowerCase()) !== -1);
-            }
-        }
-
-        const gitClient = getClient(GitRestClient);
-        const pullRequests = await gitClient.getPullRequestsByProject(
-            projectId,
-            criteria as GitPullRequestSearchCriteria,
-            undefined,
+        const result = await Querying.loadPullRequests(
+            this.filter.getState(),
             this.state.requestedPullRequestsLength,
-            100);
-
-        pullRequests.forEach(pr => {
-            const linkProps: ILinkProps = {
-                rel: 'noreferrer',
-                target: '_blank',
-                href: pr.url.replace("/_apis/git/repositories/", "/_git/")
-                    .replace("/pullRequests/", "/pullrequest/")
-                    .replace(`/${pr.repository.id}/`, `/${pr.repository.name}/`)
-                    .replace(`/${pr.repository.project.id}/`, `/${pr.repository.project.name}/`)
-            };
-            pr['linkProps'] = linkProps;
-        });
-
-        const filterFunc = postFilter.length > 0 ? postFilter.reduce((prev, next) => pr => prev(pr) && next(pr)) : pr => true;
-        const displayPrs = pullRequests.filter(filterFunc);
+            100
+        );
 
         this.state.displayPullRequests.pop();
-        this.state.displayPullRequests.push(...displayPrs);
+        this.state.displayPullRequests.push(...result.pullRequests);
         this.setState({
             ...this.state,
-            responsedPullRequestsLength: this.state.responsedPullRequestsLength + pullRequests.length,
+            responsedPullRequestsLength: this.state.responsedPullRequestsLength + result.responseCount,
             requestedPullRequestsLength: this.state.requestedPullRequestsLength + 100,
             pullRequestLoading: false,
         });
