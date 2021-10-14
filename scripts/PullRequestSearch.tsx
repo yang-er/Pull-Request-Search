@@ -37,7 +37,7 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
         this.filter = new Filter();
         this.state = {
             filterLoaded: false,
-            pullRequestLoading: false,
+            pullRequestLoading: true,
             requestedPullRequestsLength: 0,
             responsedPullRequestsLength: 0,
             repos: [],
@@ -67,6 +67,11 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
                 )}
                 <PullRequestTable
                     pullRequests={this.state.displayPullRequests}
+                    loadMore={() => {
+                        if (!this.state.pullRequestLoading) {
+                            this.queryFromRest(true);
+                        }
+                    }}
                 />
             </div>
         </Page>

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { IdentityRef } from "azure-devops-extension-api/WebApi";
 import { GitPullRequest, PullRequestAsyncStatus, PullRequestStatus } from "azure-devops-extension-api/Git";
-import { ITableBreakpoint, ITableColumn, SimpleTableCell, Table, TableColumnLayout, TwoLineTableCell } from "azure-devops-ui/Table";
+import { ITableBreakpoint, ITableColumn, SimpleTableCell, Table, TableColumnLayout, TableLoadingRow, TwoLineTableCell } from "azure-devops-ui/Table";
 import { ZeroData, ZeroDataActionType } from "azure-devops-ui/ZeroData";
 import { IIdentityDetailsProvider, VssPersona } from "azure-devops-ui/VssPersona";
 import { PillGroup, PillGroupOverflow } from "azure-devops-ui/PillGroup";
@@ -201,6 +201,7 @@ const tableBreakpoints: ITableBreakpoint[] = [
 
 export interface IPullRequestTableProps {
     pullRequests: ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>;
+    loadMore?: () => void;
 }
 
 export function PullRequestTable(props: IPullRequestTableProps) {
@@ -245,6 +246,10 @@ export function PullRequestTable(props: IPullRequestTableProps) {
                     showLines={true}
                     showHeader={false}
                     tableBreakpoints={tableBreakpoints}
+                    renderLoadingRow={(rowIndex, rowDetails) => {
+                        props.loadMore && props.loadMore();
+                        return <TableLoadingRow columns={prTableColumns} details={rowDetails} key={rowIndex} rowIndex={rowIndex} />;
+                    }}
                 />
             </Card>
         );
