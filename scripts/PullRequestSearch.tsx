@@ -2,7 +2,7 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as DevOps from "azure-devops-extension-sdk";
 import { GitPullRequest, GitPullRequestSearchCriteria, GitRepository, GitRestClient } from "azure-devops-extension-api/Git";
-import { CommonServiceIds, IGlobalMessagesService, IProjectInfo, IProjectPageService } from "azure-devops-extension-api/Common";
+import { CommonServiceIds, getClient, IGlobalMessagesService, IProjectInfo, IProjectPageService } from "azure-devops-extension-api/Common";
 import { IIdentity } from "azure-devops-extension-api/Identities";
 import { SurfaceBackground, SurfaceContext } from "azure-devops-ui/Surface";
 import { Page } from "azure-devops-ui/Page";
@@ -37,7 +37,7 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
         this.filter = new Filter();
         this.state = {
             filterLoaded: false,
-            pullRequestLoading: true,
+            pullRequestLoading: false,
             requestedPullRequestsLength: 0,
             responsedPullRequestsLength: 0,
             repos: [],
@@ -90,7 +90,9 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
             this.filter,
             repos,
             this.state.creatorIdentity,
-            this.state.reviewerIdentity);
+            this.state.reviewerIdentity,
+            () => this.queryFromRest(false)
+        );
 
         this.setState({
             ...this.state,
@@ -114,7 +116,13 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
                 ...this.state,
                 responsedPullRequestsLength: 0,
                 requestedPullRequestsLength: 0,
+                pullRequestLoading: true,
             });
+        } else {
+            this.setState({
+                ...this.state,
+                pullRequestLoading: true,
+            })
         }
 
         const projectService = await DevOps.getService<IProjectPageService>(CommonServiceIds.ProjectPageService);
@@ -174,11 +182,11 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
         if ('title' in filterState) {
             const value = filterState['title']!.value as (string | undefined);
             if (value !== undefined) {
-                postFilter.push(pr => pr.title.indexOf(value) !== -1);
+                postFilter.push(pr => pr.title.toLowerCase().indexOf(value.toLowerCase()) !== -1);
             }
         }
 
-        const gitClient = new GitRestClient({ rootPath: 'https://dev.azure.com/tlylz/' });
+        const gitClient = getClient(GitRestClient);
         const pullRequests = await gitClient.getPullRequestsByProject(
             projectId,
             criteria as GitPullRequestSearchCriteria,
@@ -207,8 +215,10 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
             ...this.state,
             responsedPullRequestsLength: this.state.responsedPullRequestsLength + pullRequests.length,
             requestedPullRequestsLength: this.state.requestedPullRequestsLength + 100,
+            pullRequestLoading: false,
         });
 
+        const realPrs = this.state.displayPullRequests.length;
         if (this.state.requestedPullRequestsLength === this.state.responsedPullRequestsLength) {
             this.state.displayPullRequests.push(new ObservableValue<GitPullRequest | undefined>(undefined));
         }
@@ -216,7 +226,7 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
         const globalMessagesSvc = await DevOps.getService<IGlobalMessagesService>(CommonServiceIds.GlobalMessagesService);
         globalMessagesSvc.addToast({
             duration: 5000,
-            message: `${this.state.displayPullRequests.length}/${this.state.responsedPullRequestsLength} pull requests match title, date and status criteria.`,
+            message: `${realPrs}/${this.state.responsedPullRequestsLength} pull requests match title, date and status criteria.`,
             forceOverrideExisting: true
         });
     }

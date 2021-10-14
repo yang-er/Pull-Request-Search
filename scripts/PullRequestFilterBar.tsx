@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as DevOps from "azure-devops-extension-sdk";
-import { CommonServiceIds, IHostNavigationService, IProjectPageService } from "azure-devops-extension-api";
+import { CommonServiceIds, getClient, IHostNavigationService, IProjectPageService } from "azure-devops-extension-api";
 import { GitRepository, GitRestClient } from "azure-devops-extension-api/Git";
 import { IIdentity } from "azure-devops-extension-api/Identities";
 import { FilterBar } from "azure-devops-ui/FilterBar";
@@ -103,15 +103,38 @@ export async function loadProject() {
 }
 
 export async function loadRepos(projectId?: string) {
-    const client = new GitRestClient({
-        rootPath: 'https://dev.azure.com/tlylz/'
-    });
-
-    return await client.getRepositories(projectId, true);
+    return await getClient(GitRestClient).getRepositories(projectId, true);
 }
 
-function subscribeFilter(filter: Filter, navigation: IHostNavigationService)
-{
+class WaitAndSee {
+    private static controller?: AbortController;
+
+    public static emit(): Promise<void> {
+        if (this.controller) {
+            this.controller.abort();
+        }
+
+        this.controller = new AbortController();
+        const signal = this.controller.signal;
+        return new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                this.controller = undefined;
+                resolve();
+            }, 1000);
+
+            signal.addEventListener("abort", () => {
+                clearTimeout(timeout);
+                reject("cancelled");
+            });
+        });
+    }
+}
+
+function subscribeFilter(
+    filter: Filter,
+    navigation: IHostNavigationService,
+    refreshData: () => void
+) {
     const cleanUp = {
         'title': '',
         'status': '',
@@ -162,8 +185,10 @@ function subscribeFilter(filter: Filter, navigation: IHostNavigationService)
     filter.subscribe((deltaState, action) => {
         if (action === 'reset-filters') {
             navigation.setQueryParams(cleanUp);
+            refreshData();
         } else if (action === 'filter-applied') {
             navigation.setQueryParams(filterApplied(deltaState));
+            WaitAndSee.emit().then(() => refreshData());
         }
     })
 }
@@ -172,8 +197,9 @@ export async function updateFilter(
     filter: Filter,
     repos: GitRepository[],
     creatorIdentity: ObservableValue<IIdentity | undefined>,
-    reviewerIdentity: ObservableValue<IIdentity | undefined>)
-{
+    reviewerIdentity: ObservableValue<IIdentity | undefined>,
+    refreshData: () => void
+) {
     const navigation = await DevOps.getService<IHostNavigationService>(CommonServiceIds.HostNavigationService);
     const queryParams = await navigation.getQueryParams();
 
@@ -250,5 +276,5 @@ export async function updateFilter(
         navigation.setQueryParams(queryParamsToRemove);
     }
 
-    subscribeFilter(filter, navigation);
+    subscribeFilter(filter, navigation, refreshData);
 }

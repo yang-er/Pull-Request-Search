@@ -1,7 +1,7 @@
 import * as React from "react";
 import { IdentityRef } from "azure-devops-extension-api/WebApi";
 import { GitPullRequest, PullRequestAsyncStatus, PullRequestStatus } from "azure-devops-extension-api/Git";
-import { IMeasurementStyle, ITableBreakpoint, ITableColumn, SimpleTableCell, Table, TableColumnLayout, TwoLineTableCell } from "azure-devops-ui/Table";
+import { ITableBreakpoint, ITableColumn, SimpleTableCell, Table, TableColumnLayout, TwoLineTableCell } from "azure-devops-ui/Table";
 import { ZeroData, ZeroDataActionType } from "azure-devops-ui/ZeroData";
 import { IIdentityDetailsProvider, VssPersona } from "azure-devops-ui/VssPersona";
 import { PillGroup, PillGroupOverflow } from "azure-devops-ui/PillGroup";
@@ -37,6 +37,12 @@ function Persona(props: { identity: IdentityRef, vote?: number }) {
             <div className="relative" key={props.identity.id}>
                 <VssPersona identityDetailsProvider={provider} size="small" />
                 <Icon iconName={iconName} className={css("repos-pr-reviewer-vote absolute", className)} />
+            </div>
+        );
+    } else if (props.vote !== undefined) {
+        return (
+            <div className="relative" key={props.identity.id}>
+                <VssPersona identityDetailsProvider={provider} size="small" />
             </div>
         );
     } else {
@@ -141,9 +147,11 @@ const reviewersColumn: ITableColumn<GitPullRequest> = {
     columnLayout: TableColumnLayout.singleLinePrefix,
     renderCell: (rowIndex, columnIndex, tableColumn, pr) => (
         <SimpleTableCell columnIndex={columnIndex} key={columnIndex} tableColumn={tableColumn}>
-            {pr.reviewers.map(reviewer => (
-                <Persona identity={reviewer} vote={reviewer.vote} />
-            ))}
+            <div className="flex-row flex-center rhythm-horizontal-8">
+                {pr.reviewers.map(reviewer => (
+                    <Persona identity={reviewer} vote={reviewer.vote} />
+                ))}
+            </div>
         </SimpleTableCell>
     )
 };
