@@ -8,6 +8,7 @@ import { FilterBar } from "azure-devops-ui/FilterBar"
 import { Header, TitleSize } from "azure-devops-ui/Header";
 import { IHeaderCommandBarItem } from "azure-devops-ui/HeaderCommandBar";
 import { Icon } from "azure-devops-ui/Icon";
+import { Observer } from "azure-devops-ui/Observer";
 import { Pill, PillSize, PillVariant } from "azure-devops-ui/Pill";
 import { PillGroup, PillGroupOverflow } from "azure-devops-ui/PillGroup";
 import { Tooltip } from "azure-devops-ui/TooltipEx";
@@ -28,6 +29,7 @@ import {
 import {
     ITableBreakpoint,
     ITableColumn,
+    ITableRowDetails,
     SimpleTableCell,
     Table,
     TableColumnLayout,
@@ -362,21 +364,43 @@ const tableBreakpoints: ITableBreakpoint[] = [
 
 interface IPluginTableProps {
     pullRequests: ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>;
+    hasValue: ObservableValue<boolean>;
     loadMore?: () => void;
 }
 
-export function PluginTable(props: IPluginTableProps) {
-    if (props.pullRequests.length === 0) {
+class TableLoadingRowV2<T> extends React.Component<{
+    columns: Array<ITableColumn<T>>;
+    details: ITableRowDetails<T>;
+    rowIndex: number;
+    onMount?: () => void;
+}> {
+    public render(): JSX.Element {
         return (
+            <TableLoadingRow
+                columns={this.props.columns}
+                details={this.props.details}
+                key={this.props.rowIndex}
+                rowIndex={this.props.rowIndex}
+            />
+        );
+    }
+
+    public componentDidMount() {
+        this.props.onMount && setTimeout(this.props.onMount, 500);
+    }
+}
+
+export function PluginTable(props: IPluginTableProps) {
+    return <Observer hasValue={props.hasValue}>
+        {(observedProps: { hasValue: boolean }) => !observedProps.hasValue ? (
             <ZeroData
+                className="margin-top-16"
                 primaryText="No pull requests match the given criteria"
                 secondaryText="Pull requests allow you to review code and help ensure quality before merge."
                 imageAltText="No pull requests match the given criteria"
                 imagePath="https://cdn.vsassets.io/ext/ms.vss-code-web/pr-list/Content/emptyPRList.e7LLYcW6Lt_C0mQv.svg"
             />
-        )
-    } else {
-        return (
+        ) : (
             <Card
                 className="margin-top-16 flex-grow bolt-table-card"
                 contentProps={{ contentPadding: false }}
@@ -388,19 +412,17 @@ export function PluginTable(props: IPluginTableProps) {
                     showLines={true}
                     showHeader={false}
                     tableBreakpoints={tableBreakpoints}
-                    renderLoadingRow={(rowIndex, rowDetails) => {
-                        props.loadMore && props.loadMore();
-                        return (
-                            <TableLoadingRow
-                                columns={prTableColumns}
-                                details={rowDetails}
-                                key={rowIndex}
-                                rowIndex={rowIndex}
-                            />
-                        );
-                    }}
+                    renderLoadingRow={(rowIndex, rowDetails) => (
+                        <TableLoadingRowV2
+                            columns={prTableColumns}
+                            details={rowDetails}
+                            key={rowIndex}
+                            rowIndex={rowIndex}
+                            onMount={() => props.loadMore && props.loadMore()}
+                        />
+                    )}
                 />
             </Card>
-        );
-    }
+        )}
+    </Observer>;
 }

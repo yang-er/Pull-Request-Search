@@ -6,6 +6,7 @@ import { GitPullRequest, GitRepository } from "azure-devops-extension-api/Git";
 import { IIdentity } from "azure-devops-extension-api/Identities";
 import { Page } from "azure-devops-ui/Page";
 import { Filter } from "azure-devops-ui/Utilities/Filter";
+import { Spinner, SpinnerSize } from "azure-devops-ui/Spinner";
 import { SurfaceBackground, SurfaceContext } from "azure-devops-ui/Surface";
 import { IReadonlyObservableValue, ObservableArray, ObservableValue } from "azure-devops-ui/Core/Observable";
 import "azure-devops-ui/Core/override.css";
@@ -17,35 +18,29 @@ import { PluginFilterBar, PluginHeader, PluginTable } from "./Displaying";
 interface IAppState {
     repos: GitRepository[];
     project: IProjectInfo;
-    creatorIdentity: ObservableValue<IIdentity | undefined>;
-    reviewerIdentity: ObservableValue<IIdentity | undefined>;
     filterLoaded: boolean;
-    pullRequestLoading: boolean;
-    displayPullRequests: ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>;
-    requestedPullRequestsLength: number;
-    responsedPullRequestsLength: number;
 }
 
 class PullRequestSearchApp extends React.Component<{}, IAppState> {
 
-    private filter = new Filter();
-    private identityProvider = new Querying.IdentityPickerProvider();
+    private readonly filter = new Filter();
+    private readonly identityProvider = new Querying.IdentityPickerProvider();
+    private readonly requestedLength = new ObservableValue(0);
+    private readonly responsedLength = new ObservableValue(0);
+    private readonly pullRequestLoading = new ObservableValue(false);
+    private readonly hasPrValue = new ObservableValue(true);
+    private readonly creatorIdentity = new ObservableValue<IIdentity | undefined>(undefined);
+    private readonly reviewerIdentity = new ObservableValue<IIdentity | undefined>(undefined);
+    private readonly displayPullRequests = new ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>([
+        new ObservableValue<GitPullRequest | undefined>(undefined)
+    ]);
 
     constructor() {
         super({});
-        this.filter = new Filter();
         this.state = {
             repos: [],
             filterLoaded: false,
-            pullRequestLoading: true,
-            project: { id: '', name: '' },
-            requestedPullRequestsLength: 0,
-            responsedPullRequestsLength: 0,
-            creatorIdentity: new ObservableValue<IIdentity | undefined>(undefined),
-            reviewerIdentity: new ObservableValue<IIdentity | undefined>(undefined),
-            displayPullRequests: new ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>([
-                new ObservableValue<GitPullRequest | undefined>(undefined)
-            ]),
+            project: { id: '', name: '' }
         };
     }
 
@@ -55,25 +50,32 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
                 className="flex-grow custom-scrollbar scroll-auto-hide sample-page"
             >
                 <PluginHeader
-                    onRefreshActivate={() => this.queryFromRest(false)}
+                    onRefreshActivate={() => this.pullRequestLoading.value || this.queryFromRest(false)}
                 />
-                <div
-                    className="page-content page-content-top"
-                >
-                    {this.state.filterLoaded && (
+                {this.state.filterLoaded ? (
+                    <div
+                        className="page-content page-content-top"
+                    >
                         <PluginFilterBar
                             filter={this.filter}
                             repos={this.state.repos}
-                            creatorIdentity={this.state.creatorIdentity}
-                            reviewerIdentity={this.state.reviewerIdentity}
+                            creatorIdentity={this.creatorIdentity}
+                            reviewerIdentity={this.reviewerIdentity}
                             pickerProvider={this.identityProvider}
                         />
-                    )}
-                    <PluginTable
-                        pullRequests={this.state.displayPullRequests}
-                        loadMore={() => this.state.pullRequestLoading || this.queryFromRest(true)}
-                    />
-                </div>
+                        <PluginTable
+                            pullRequests={this.displayPullRequests}
+                            hasValue={this.hasPrValue}
+                            loadMore={() => this.pullRequestLoading.value || this.queryFromRest(true)}
+                        />
+                    </div>
+                ) : (
+                    <div className="flex-column flex-grow">
+                        <div className="flex-grow" />
+                        <Spinner label="loading..." size={SpinnerSize.large} />
+                        <div className="flex-grow" style={{ flexGrow: 2 }} />
+                    </div>
+                )}
             </Page>
         );
     }
@@ -86,76 +88,68 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
         const project = await Querying.loadProject();
         const repos = await Querying.loadRepos(project.id);
 
-        this.setState({
-            ...this.state,
-            project,
-            repos
-        });
-
         await Filtering.updateFilter(
             this.filter,
             repos,
-            this.state.creatorIdentity,
-            this.state.reviewerIdentity,
-            () => this.queryFromRest(false)
+            this.creatorIdentity,
+            this.reviewerIdentity,
+            () => this.pullRequestLoading.value || this.queryFromRest(false)
         );
 
         this.setState({
-            ...this.state,
+            project,
+            repos,
             filterLoaded: true
         });
 
         await DevOps.notifyLoadSucceeded();
         await DevOps.ready();
-        this.queryFromRest(false);
     }
 
     public queryFromRest = async (append: boolean): Promise<void> => {
-        if (append && this.state.requestedPullRequestsLength > this.state.responsedPullRequestsLength) {
+        if (!this.state.filterLoaded) {
             return;
         }
 
+        let requestedLength = this.requestedLength.value;
+        let responsedLength = this.responsedLength.value;
+        if (append && requestedLength > responsedLength) {
+            return;
+        }
+
+        this.pullRequestLoading.value = true;
+        const displayPullRequests = this.displayPullRequests;
         if (!append) {
-            this.state.displayPullRequests.removeAll();
-            this.state.displayPullRequests.push(new ObservableValue<GitPullRequest | undefined>(undefined));
-            this.setState({
-                ...this.state,
-                responsedPullRequestsLength: 0,
-                requestedPullRequestsLength: 0,
-                pullRequestLoading: true,
-            });
-        } else {
-            this.setState({
-                ...this.state,
-                pullRequestLoading: true,
-            });
+            displayPullRequests.removeAll();
+            displayPullRequests.push(new ObservableValue<GitPullRequest | undefined>(undefined));
+            requestedLength = responsedLength = 0;
         }
 
         const result = await Querying.loadPullRequests(
             this.state.repos,
             this.filter.getState(),
-            this.state.requestedPullRequestsLength,
+            requestedLength,
             100
         );
 
-        this.state.displayPullRequests.pop();
-        this.state.displayPullRequests.push(...result.pullRequests);
-        this.setState({
-            ...this.state,
-            responsedPullRequestsLength: this.state.responsedPullRequestsLength + result.responseCount,
-            requestedPullRequestsLength: this.state.requestedPullRequestsLength + 100,
-            pullRequestLoading: false,
-        });
+        displayPullRequests.pop();
+        displayPullRequests.push(...result.pullRequests);
+        responsedLength += result.responseCount;
+        requestedLength += 100;
+        this.responsedLength.value = responsedLength;
+        this.requestedLength.value = requestedLength;
 
-        const realPrs = this.state.displayPullRequests.length;
-        if (this.state.requestedPullRequestsLength === this.state.responsedPullRequestsLength) {
-            this.state.displayPullRequests.push(new ObservableValue<GitPullRequest | undefined>(undefined));
+        const realPrs = displayPullRequests.length;
+        if (requestedLength === responsedLength) {
+            displayPullRequests.push(new ObservableValue<GitPullRequest | undefined>(undefined));
         }
 
+        this.hasPrValue.value = displayPullRequests.length !== 0;
+        this.pullRequestLoading.value = false;
         const globalMessagesSvc = await DevOps.getService<IGlobalMessagesService>(CommonServiceIds.GlobalMessagesService);
         globalMessagesSvc.addToast({
             duration: 5000,
-            message: `${realPrs}/${this.state.responsedPullRequestsLength} pull requests match title, date and status criteria.`,
+            message: `${realPrs}/${responsedLength} pull requests match title, date and status criteria.`,
             forceOverrideExisting: true
         });
     }
