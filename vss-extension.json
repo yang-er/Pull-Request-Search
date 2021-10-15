@@ -1,14 +1,14 @@
 {
     "manifestVersion": 1,
     "id": "pull-request-search",
-    "version": "1.13.126",
+    "version": "2.0.132",
     "name": "Pull Request Search",
     "scopes": [ 
         "vso.code",
         "vso.identitypicker"
     ],
     "description": "Rich pull request search experience.",
-    "publisher": "ottostreifel",
+    "publisher": "liayang",
     "icons": {
         "default": "img/storeLogo.png"
     },
@@ -31,7 +31,7 @@
     },
     "repository": {
         "type": "git",
-        "uri": "https://github.com/ostreifel/Pull-Request-Search"
+        "uri": "https://github.com/yang-er/Pull-Request-Search"
     },
     "branding": {
         "color": "rgb(220, 235, 252)",

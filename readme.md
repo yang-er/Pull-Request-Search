@@ -1,54 +1,28 @@
-### Structure ###
+### Structure
 
 ```
 /scripts            - Typescript code for extension
 /img                - Image assets for extension and description
-/typings            - Typescript typings
 
-details.md          - Description to be shown in marketplace   
-index.html          - Main entry point
+details.md          - Description to be shown in marketplace
 vss-extension.json  - Extension manifest
 ```
 
-### Version History ###
+### Version History
 
-```
-0.6.0 - Updated VSS SDK to M104
-0.1.1 - Automatically increase extension's minor version when packaging.
-1.0.1 - Release version of Pull request search
-```
+- **2.0.131**: Batch update
 
-### Usage ###
+### Usage
 
 1. Clone the repository
-1. `npm install` to install required local dependencies
-2. `npm install -g grunt` to install a global copy of grunt (unless it's already installed)
-2. `grunt` to build and package the application
+2. `npm install` to install required local dependencies
+3. Add `"baseUri": "https://localhost:3000"` to `configs/dev.json`
+4. Follow instructions to publish a dev version and install on your own organization
 
-#### Grunt ####
+#### npm run
 
-Three basic `grunt` tasks are defined:
+- `clean` for deleting build artifacts
+- `build:dev` for building a dev version VSIX
+- `build` for building a prod version VSIX
+- `debug` for launching local webpack dev server
 
-* `build` - Compiles TS files in `scripts` folder
-* `package-dev` - Builds the development version of the vsix package
-* `package-release` - Builds the release version of the vsix package
-* `publish-dev` - Publishes the development version of the extension to the marketplace using `tfx-cli`
-* `publish-release` - Publishes the release version of the extension to the marketplace using `tfx-cli`
-
-Note: To avoid `tfx` prompting for your token when publishing, login in beforehand using `tfx login` and the service uri of ` https://marketplace.visualstudio.com`.
-
-#### Including framework modules ####
-
-The VSTS framework is setup to initalize the requirejs AMD loader, so just use `import Foo = require("foo")` to include framework modules.
-
-#### VS Code ####
-
-The included `.vscode` config allows you to open and build the project using [VS Code](https://code.visualstudio.com/).
-
-#### Unit Testing ####
-
-The project is setup for unit testing using `mocha`, `chai`, and the `karma` test runner. A simple example unit test is included in `scripts/logic/messageHelper.tests.ts`. To run tests just execute:
-
-```
-grunt test
-```

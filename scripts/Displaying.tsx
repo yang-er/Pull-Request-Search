@@ -68,14 +68,14 @@ export function PluginHeader(props: IPluginHeaderProps): JSX.Element {
         {
             id: 'write-review',
             text: 'Write a review',
-            href: 'https://marketplace.visualstudio.com/items?itemName=ottostreifel.pull-request-search',
+            href: 'https://marketplace.visualstudio.com/items?itemName=liayang.pull-request-search',
             target: '_blank',
             important: false,
         },
         {
             id: 'report-issue',
             text: 'Report an issue',
-            href: 'https://github.com/ostreifel/Pull-Request-Search/issues',
+            href: 'https://github.com/yang-er/Pull-Request-Search/issues',
             target: '_blank',
             important: false,
         },
