@@ -31,6 +31,7 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
     private readonly hasPrValue = new ObservableValue(true);
     private readonly creatorIdentity = new ObservableValue<IIdentity | undefined>(undefined);
     private readonly reviewerIdentity = new ObservableValue<IIdentity | undefined>(undefined);
+    private readonly lastUpdateTimes = new ObservableArray<Date>([]);
     private readonly displayPullRequests = new ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>([
         new ObservableValue<GitPullRequest | undefined>(undefined)
     ]);
@@ -50,7 +51,10 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
                 className="flex-grow custom-scrollbar scroll-auto-hide sample-page"
             >
                 <PluginHeader
-                    onRefreshActivate={() => this.pullRequestLoading.value || this.queryFromRest(false)}
+                    onRefreshActivate={() => {
+                        this.lastUpdateTimes.removeAll();
+                        this.pullRequestLoading.value || this.queryFromRest(false);
+                    }}
                 />
                 {this.state.filterLoaded ? (
                     <div
@@ -66,7 +70,11 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
                         <PluginTable
                             pullRequests={this.displayPullRequests}
                             hasValue={this.hasPrValue}
-                            loadMore={() => this.pullRequestLoading.value || this.queryFromRest(true)}
+                            shouldAutoLoadMore={() => this.lastUpdateTimes.length < 10}
+                            loadMore={force => {
+                                force && this.lastUpdateTimes.removeAll();
+                                this.pullRequestLoading.value || this.queryFromRest(true);
+                            }}
                         />
                     </div>
                 ) : (
@@ -93,7 +101,10 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
             repos,
             this.creatorIdentity,
             this.reviewerIdentity,
-            () => this.pullRequestLoading.value || this.queryFromRest(false)
+            () => {
+                this.lastUpdateTimes.removeAll();
+                this.pullRequestLoading.value || this.queryFromRest(false);
+            }
         );
 
         this.setState({
@@ -145,6 +156,7 @@ class PullRequestSearchApp extends React.Component<{}, IAppState> {
         }
 
         this.hasPrValue.value = displayPullRequests.length !== 0;
+        this.lastUpdateTimes.push(new Date());
         this.pullRequestLoading.value = false;
         const globalMessagesSvc = await DevOps.getService<IGlobalMessagesService>(CommonServiceIds.GlobalMessagesService);
         globalMessagesSvc.addToast({

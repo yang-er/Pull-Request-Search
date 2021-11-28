@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Ago } from "azure-devops-ui/Ago";
 import { Card } from "azure-devops-ui/Card";
 import { ScreenBreakpoints, ScreenSize } from "azure-devops-ui/Core/Util/Screen";
 import { DropdownFilterBarItem } from "azure-devops-ui/Dropdown";
@@ -8,6 +7,7 @@ import { FilterBar } from "azure-devops-ui/FilterBar"
 import { Header, TitleSize } from "azure-devops-ui/Header";
 import { IHeaderCommandBarItem } from "azure-devops-ui/HeaderCommandBar";
 import { Icon } from "azure-devops-ui/Icon";
+import { Link } from "azure-devops-ui/Link";
 import { Observer } from "azure-devops-ui/Observer";
 import { Pill, PillSize, PillVariant } from "azure-devops-ui/Pill";
 import { PillGroup, PillGroupOverflow } from "azure-devops-ui/PillGroup";
@@ -35,12 +35,14 @@ import {
     Table,
     TableColumnLayout,
     TableLoadingRow,
+    TableRow,
     TwoLineTableCell
 } from "azure-devops-ui/Table";
 
 import {
     IReadonlyObservableValue,
     ObservableArray,
+    ObservableLike,
     ObservableValue
 } from "azure-devops-ui/Core/Observable";
 
@@ -385,28 +387,41 @@ const tableBreakpoints: ITableBreakpoint[] = [
 interface IPluginTableProps {
     pullRequests: ObservableArray<GitPullRequest | IReadonlyObservableValue<GitPullRequest | undefined>>;
     hasValue: ObservableValue<boolean>;
-    loadMore?: () => void;
+    loadMore?: (force: boolean) => void;
+    shouldAutoLoadMore?: () => boolean;
 }
 
 class TableLoadingRowV2<T> extends React.Component<{
     columns: Array<ITableColumn<T>>;
     details: ITableRowDetails<T>;
     rowIndex: number;
-    onMount?: () => void;
+    onMount?: (force: boolean) => void;
+    shouldAutoLoadMore?: () => boolean;
 }> {
     public render(): JSX.Element {
-        return (
+        return this.props.shouldAutoLoadMore && this.props.shouldAutoLoadMore() ? (
             <TableLoadingRow
                 columns={this.props.columns}
                 details={this.props.details}
                 key={this.props.rowIndex}
                 rowIndex={this.props.rowIndex}
             />
+        ) : (
+            <TableRow className="bolt-list-row-loading" details={this.props.details} index={this.props.rowIndex}>
+                <SimpleTableCell
+                    columnIndex={0}
+                    colspan={this.props.columns.filter(column => ObservableLike.getValue(column.width)).length}
+                >
+                    <Link onClick={() => this.props.onMount && this.props.onMount(true)}>Click here to load more pull requests...</Link>
+                </SimpleTableCell>
+            </TableRow>
         );
     }
 
     public componentDidMount() {
-        this.props.onMount && setTimeout(this.props.onMount, 500);
+        this.props.onMount
+            && this.props.shouldAutoLoadMore && this.props.shouldAutoLoadMore()
+            && setTimeout(this.props.onMount, 500);
     }
 }
 
@@ -438,7 +453,8 @@ export function PluginTable(props: IPluginTableProps) {
                             details={rowDetails}
                             key={rowIndex}
                             rowIndex={rowIndex}
-                            onMount={() => props.loadMore && props.loadMore()}
+                            onMount={props.loadMore}
+                            shouldAutoLoadMore={props.shouldAutoLoadMore}
                         />
                     )}
                 />
