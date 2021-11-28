@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Ago } from "azure-devops-ui/Ago";
 import { Card } from "azure-devops-ui/Card";
-import { ScreenBreakpoints } from "azure-devops-ui/Core/Util/Screen";
+import { ScreenBreakpoints, ScreenSize } from "azure-devops-ui/Core/Util/Screen";
 import { DropdownFilterBarItem } from "azure-devops-ui/Dropdown";
 import { DatePickerFilterBarItem } from "azure-devops-ui-datepicker";
 import { FilterBar } from "azure-devops-ui/FilterBar"
@@ -14,6 +14,7 @@ import { PillGroup, PillGroupOverflow } from "azure-devops-ui/PillGroup";
 import { Tooltip } from "azure-devops-ui/TooltipEx";
 import { KeywordFilterBarItem } from "azure-devops-ui/TextFilterBarItem";
 import { css } from "azure-devops-ui/Util";
+import * as DateUtil from "azure-devops-ui/Utilities/Date";
 import { Filter } from "azure-devops-ui/Utilities/Filter";
 import { IIdentityDetailsProvider, VssPersona } from "azure-devops-ui/VssPersona";
 import { ZeroData, ZeroDataActionType } from "azure-devops-ui/ZeroData";
@@ -190,29 +191,40 @@ function Persona(props: { identity: IdentityRef, vote?: number }): JSX.Element {
     if (props.vote !== undefined && props.vote !== 0) {
         let iconName = "CompletedSolid";
         let className = "approved";
+        let description = "approved";
         if (props.vote === -5) {
             iconName = "AwayStatus";
             className = "waiting";
+            description = "waiting for author";
         } else if (props.vote === -10) {
             iconName = "StatusErrorFull";
             className = "rejected";
+            description = "rejected";
+        } else if (props.vote === 5) {
+            description = "approved with suggestions";
         }
 
         return (
-            <div className="relative" key={props.identity.id}>
-                <VssPersona identityDetailsProvider={provider} size="small" />
-                <Icon iconName={iconName} className={css("repos-pr-reviewer-vote absolute", className)} />
-            </div>
+            <Tooltip text={`${props.identity.displayName} (${description})`}>
+                <div className="relative" key={props.identity.id}>
+                    <VssPersona identityDetailsProvider={provider} size="small" />
+                    <Icon iconName={iconName} className={css("repos-pr-reviewer-vote absolute", className)} />
+                </div>
+            </Tooltip>
         );
     } else if (props.vote !== undefined) {
         return (
-            <div className="relative" key={props.identity.id}>
-                <VssPersona identityDetailsProvider={provider} size="small" />
-            </div>
+            <Tooltip text={`${props.identity.displayName} (no review)`}>
+                <div className="relative" key={props.identity.id}>
+                    <VssPersona identityDetailsProvider={provider} size="small" />
+                </div>
+            </Tooltip>
         );
     } else {
         return (
-            <VssPersona identityDetailsProvider={provider} size="medium" />
+            <Tooltip text={props.identity.displayName}>
+                <VssPersona identityDetailsProvider={provider} size="medium" />
+            </Tooltip>
         );
     }
 }
@@ -220,6 +232,7 @@ function Persona(props: { identity: IdentityRef, vote?: number }): JSX.Element {
 const prTableColumns: ITableColumn<GitPullRequest>[] = [
     {
         id: "creator",
+        name: "#",
         width: new ObservableValue(48),
         columnLayout: TableColumnLayout.twoLinePrefix,
         renderCell: (rowIndex, columnIndex, tableColumn, tableItem) => (
@@ -307,6 +320,7 @@ const prTableColumns: ITableColumn<GitPullRequest>[] = [
     },
     {
         id: "reviewers",
+        name: "Reviewers",
         width: new ObservableValue(160),
         columnLayout: TableColumnLayout.singleLinePrefix,
         renderCell: (rowIndex, columnIndex, tableColumn, pr) => (
@@ -321,21 +335,27 @@ const prTableColumns: ITableColumn<GitPullRequest>[] = [
     },
     {
         id: "updates",
+        name: "Last update",
         width: new ObservableValue(250),
         columnLayout: TableColumnLayout.singleLine,
-        renderCell: (rowIndex, columnIndex, tableColumn, pr) => (
-            <SimpleTableCell columnIndex={columnIndex} key={columnIndex} tableColumn={tableColumn}>
-                {pr.status === PullRequestStatus.Active ? (
-                    <span>Created <Ago date={pr.creationDate} /></span>
-                ) : pr.status === PullRequestStatus.Completed ? (
-                    <span>Completed <Ago date={pr.closedDate} /></span>
-                ) : pr.status === PullRequestStatus.Abandoned ? (
-                    <span>Abandoned <Ago date={pr.closedDate} /></span>
-                ) : (
-                    <span>Unknwon</span>
-                )}
-            </SimpleTableCell>
-        )
+        renderCell: (rowIndex, columnIndex, tableColumn, pr) => {
+            const { spec, time } =
+                pr.status === PullRequestStatus.Active ? { spec: "Created", time: pr.creationDate }
+                : pr.status === PullRequestStatus.Completed ? { spec: "Completed", time: pr.closedDate }
+                : pr.status === PullRequestStatus.Abandoned ? { spec: "Abandoned", time: pr.closedDate }
+                : { spec: "Unknown", time: undefined };
+
+            const tooltipString = spec + " " + (time === undefined ? "state" : DateUtil.tooltipString(time));
+            const displayString = spec + " " + (time === undefined ? "state" : DateUtil.ago(time));
+
+            return (
+                <SimpleTableCell columnIndex={columnIndex} key={columnIndex} tableColumn={tableColumn}>
+                    <Tooltip text={tooltipString}>
+                        <span className="bolt-time-item white-space-nowrap text-ellipsis">{displayString}</span>
+                    </Tooltip>
+                </SimpleTableCell>
+            )
+        }
     }
 ];
 
@@ -350,7 +370,7 @@ const tableBreakpoints: ITableBreakpoint[] = [
     },
     {
         breakpoint: ScreenBreakpoints.medium,
-        columnWidths: [48, -100, 160, 160]
+        columnWidths: [48, -100, 200, 250]
     },
     {
         breakpoint: ScreenBreakpoints.large,
@@ -410,7 +430,7 @@ export function PluginTable(props: IPluginTableProps) {
                     containerClassName="h-scroll-auto"
                     itemProvider={props.pullRequests}
                     showLines={true}
-                    showHeader={false}
+                    showHeader={size => size >= ScreenSize.medium}
                     tableBreakpoints={tableBreakpoints}
                     renderLoadingRow={(rowIndex, rowDetails) => (
                         <TableLoadingRowV2
