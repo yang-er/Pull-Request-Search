@@ -35,7 +35,7 @@
     "build:dev": "npm run compile:dev && npm run postbuild",
     "debug": "webpack-dev-server --mode development",
     "postbuild": "npm run package-extension",
-    "package-extension": "tfx extension create --rev-version --manifests vss-extension.json --overrides-file configs/dev.json",
+    "package-extension": "tfx extension create --rev-version --manifests vss-extension.json --overrides-file configs/dev.json && tfx extension create --manifests vss-extension.json --overrides-file configs/release.json",
     "publish-extension": "tfx extension publish --rev-version --manifests vss-extension.json --overrides-file configs/release.json"
   },
   "dependencies": {

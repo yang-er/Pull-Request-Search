@@ -11,6 +11,7 @@ vss-extension.json  - Extension manifest
 ### Version History
 
 - **2.0.131**: Batch update
+- **2.0.133**: Throttling automatic load
 
 ### Usage
 
